@@ -32,5 +32,53 @@ openssl enc -d -des -in cipher_text_des.enc -out decipher_text_des.txt -provider
 ########## ASYMMETRIC ############
 
 openssl genpkey -algorithm RSA -out private_key.pem \   
-                -pkeyopt rsa_keygen_bits:2048 -aes-256-cbc
+  -pkeyopt rsa_keygen_bits:2048 -aes-256-cbc
 # the private key is also encrypted with aes-256, the psw is on a txt file
+
+##### public to private
+openssl pkeyutl -encrypt -pubin -inkey pub_key.pem \
+  -in txt/pub_to_priv.txt -out txt/pub_to_priv.enc
+
+openssl pkeyutl -decrypt -inkey priv_key.pem \
+  -in txt/pub_to_priv.enc -out txt/pub_to_priv_decrypted.txt
+
+
+###### private to public (signature)
+openssl dgst -sha256 -sign priv_key.pem \             
+  -out txt/sign.sha256 txt/to_sign.txt
+
+openssl dgst -sha256 -verify pub_key.pem \            
+  -signature txt/sign.sha256 txt/to_sign.txt
+
+
+########## CA ############
+
+openssl genpkey -algorithm RSA -out ca_priv_key.pem \      
+  -pkeyopt rsa_keygen_bits:4096
+
+openssl req -new -x509 -key ca_priv_key.pem \      
+  -out ca_certificate.pem -days 365 \ 
+  -subj "/C=IT/ST=Naples/O=Universita Federico II/CN=Federico II/emailAddress=test@mail.com"
+
+openssl req -new -key user_priv_key.pem \      
+  -out user_cert_req.csr \
+  -subj "/C=IT/ST=Naples/O=Unina/CN=unina.it"
+
+# sign certificate by CA
+openssl x509 -req -in user_cert_req.csr \                
+             -CA ca_certificate.pem \
+             -CAkey ca_priv_key.pem \
+             -CAcreateserial \
+             -out user_certificate_signed.pem -days 365 -sha256
+
+openssl verify -CAfile ca_certificate.pem user_certificate_signed.pem 
+
+
+########## CA ############
+
+openssl pkcs12 -export -out user_p12.p12 \
+    -name "user_key" \
+    -inkey user_priv_key.pem \
+    -in user_certificate_signed.pem \
+    -chain -CAfile ca_certificate.pem
+
