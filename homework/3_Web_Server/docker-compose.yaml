@@ -1,0 +1,42 @@
+services:
+  apache-FE:
+    image: httpd:2.4-alpine
+    container_name: apache_fe
+    ports:
+      - "80:80"   # expose HTTP port
+      - "443:443" # expose HTTPS port (SSL)
+    volumes:
+      # config (include SSL)
+      - ./apache/config/httpd.conf:/usr/local/apache2/conf/httpd.conf
+      - ./apache/config/apache_ssl.conf:/usr/local/apache2/conf.d/ssl/ssl.conf
+      
+      # certs folder
+      - ./apache/certs:/usr/local/apache2/conf.d/ssl
+      
+      # save logs
+      #- ./apache/logs:/usr/local/apache2/logs
+
+      # web files
+      #- ./apache/htdocs:/usr/local/apache2/htdocs/
+    networks:
+      - web-server-network
+    restart: unless-stopped
+
+  tomcat-BE:
+    image: tomcat:10.1-jdk17-temurin
+    container_name: tomcat_be
+    expose:
+      - "8080" # expose only to apache server
+    volumes:
+      # .war folder
+      - ./tomcat/webapps:/usr/local/tomcat/webapps/
+      
+      # save logs
+      # - ./tomcat/logs:/usr/local/tomcat/logs/
+    networks:
+      - web-server-network
+    restart: unless-stopped
+
+networks:
+  web-server-network:
+    driver: bridge
