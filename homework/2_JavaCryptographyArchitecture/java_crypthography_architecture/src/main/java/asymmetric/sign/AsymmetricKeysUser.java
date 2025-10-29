@@ -1,34 +1,32 @@
 package asymmetric.sign;
 
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.security.cert.Certificate;
-import java.time.ZonedDateTime;
-import java.util.Date;
-import javax.crypto.Cipher;
+import javax.security.auth.x500.X500Principal;
 
-import asymmetric.CertificateGenerator;
 import org.bouncycastle.openssl.*;
-import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
-import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
-import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
-import org.bouncycastle.openssl.jcajce.JcePEMEncryptorBuilder;
+import org.bouncycastle.openssl.jcajce.*;
+import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.InputDecryptorProvider;
+import org.bouncycastle.operator.OutputEncryptor;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
+import org.bouncycastle.pkcs.PKCS10CertificationRequestBuilder;
+import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
+import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
 
 public class AsymmetricKeysUser {
 
-    private final String CONFIG_DIR = "src/main/resources/asymmetric";
-    private final String KEYSTORE_FILE = "key_store_user.pfx";
-    private final char[] KEYSTORE_PSW = !(System.getenv("KEYSTORE_PSW") == null) ? System.getenv("KEYSTORE_PSW").toCharArray() : "keystore_psw".toCharArray();
-    private final String KEYSTORE_ALIAS = "key_alias";
+    private final String CONFIG_DIR = "src/main/resources/asymmetric/";
+    private final String PRIVATE_KEY_NAME = "private_key_user.pem";
+    private final String PUBLIC_KEY_NAME = "public_key_user.pem";
     private final String KEY_PSW= "Unsecure psw";
     private final String USER_DN_NAME = "CN=www.unina.it, OU=Dipartimento di Elettronica e Informatica, O=Università degli studi di Napoli Federico II, L=Napoli, ST=NA, C=IT";
-
-    // TODO: user have to request a CSR
+    private final String ALGORITHM = "SHA256withRSA";
 
     AsymmetricKeysUser() {
         try {
@@ -50,41 +48,97 @@ public class AsymmetricKeysUser {
     public PKCS10CertificationRequest generateCSR() {
         try {
             KeyPair keyPair = loadEncryptedKeyPEM(CONFIG_DIR, KEY_PSW);
+
+            // Build CSR
+            PKCS10CertificationRequestBuilder p10Builder =
+                    new JcaPKCS10CertificationRequestBuilder(
+                            new X500Principal(USER_DN_NAME),
+                            keyPair.getPublic()
+                    );
+
+            JcaContentSignerBuilder csBuilder =
+                    new JcaContentSignerBuilder(ALGORITHM)
+                            .setProvider("BC");
+            ContentSigner signer = csBuilder.build(keyPair.getPrivate());
+
+            return p10Builder.build(signer);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-
-        return null;
     }
 
-    private void saveEncryptedKeyPEM(KeyPair keyPair, String filePath, String password) throws Exception {
-        try (JcaPEMWriter pemWriter = new JcaPEMWriter(new FileWriter(filePath + "/private_key_user.pem"))) {
-            PEMEncryptor encryptor = new JcePEMEncryptorBuilder("AES-256-CBC")
+    public void saveEncryptedKeyPEM(KeyPair keyPair, String filePath, String password) throws Exception {
+        Security.addProvider(new BouncyCastleProvider());
+
+        // --- Write encrypted private key (PKCS#8 with AES-256-CBC) ---
+        try (Writer writer = new FileWriter(filePath + PRIVATE_KEY_NAME);
+             JcaPEMWriter pemWriter = new JcaPEMWriter(writer)) {
+
+            // ✅ Use ASN1ObjectIdentifier instead of String
+            OutputEncryptor encryptor = new JceOpenSSLPKCS8EncryptorBuilder(
+                    PKCSObjectIdentifiers.pbeWithSHAAnd3_KeyTripleDES_CBC // or AES-256 equivalent below
+            )
                     .setProvider("BC")
-                    .build(password.toCharArray());
-            pemWriter.writeObject(new MiscPEMGenerator(keyPair.getPrivate(), encryptor));
+                    .setRandom(new SecureRandom())
+                    .setPassword(password.toCharArray())
+                    .build();
+
+            // Or, for AES-256, you can use this OID:
+            // PKCSObjectIdentifiers.id_PBES2  (recommended modern one)
+
+            JcaPKCS8Generator pkcs8Generator = new JcaPKCS8Generator(keyPair.getPrivate(), encryptor);
+            pemWriter.writeObject(pkcs8Generator);
         }
 
-        try (JcaPEMWriter pemWriter = new JcaPEMWriter(new FileWriter(filePath + "/public_key_user.pem"))) {
+        // --- Write public key ---
+        try (Writer writer = new FileWriter(filePath + PUBLIC_KEY_NAME);
+             JcaPEMWriter pemWriter = new JcaPEMWriter(writer)) {
             pemWriter.writeObject(keyPair.getPublic());
         }
     }
 
     private KeyPair loadEncryptedKeyPEM(String filePath, String password) throws Exception {
-        PrivateKey privateKey = null;
-        PublicKey publicKey = null;
+        Security.addProvider(new BouncyCastleProvider());
 
-        try (PEMParser parser = new PEMParser(new FileReader(filePath))) {
-            PrivateKeyInfo privateKeyInfo = (PrivateKeyInfo) parser.readObject();
-            JcaPEMKeyConverter converter = new JcaPEMKeyConverter().setProvider("BC");
-            privateKey = converter.getPrivateKey(privateKeyInfo);
+        PrivateKey privateKey;
+        PublicKey publicKey;
+        File privFile = new File(filePath + PRIVATE_KEY_NAME);
+        if (!privFile.exists() || privFile.length() == 0) {
+            throw new FileNotFoundException("Private key file not found or empty: " + privFile.getAbsolutePath());
         }
 
-        try (PEMParser parser = new PEMParser(new FileReader(filePath))) {
-            Object object = parser.readObject();
-            publicKey = new JcaPEMKeyConverter().getPublicKey(
-                    org.bouncycastle.asn1.x509.SubjectPublicKeyInfo.getInstance(object)
-            );
+        // --- Load and decrypt private key ---
+        try (PEMParser parser = new PEMParser(new FileReader(filePath + PRIVATE_KEY_NAME))) {
+            Object obj = parser.readObject();
+
+            if (!(obj instanceof PKCS8EncryptedPrivateKeyInfo encryptedInfo)) {
+                throw new IllegalStateException("Expected PKCS8EncryptedPrivateKeyInfo, got: " + obj.getClass());
+            }
+
+            // Build decryptor
+            InputDecryptorProvider decryptorProvider =
+                    new JceOpenSSLPKCS8DecryptorProviderBuilder()
+                            .setProvider("BC")
+                            .build(password.toCharArray());
+
+            // Decrypt to get PrivateKeyInfo
+            PrivateKeyInfo privateKeyInfo = encryptedInfo.decryptPrivateKeyInfo(decryptorProvider);
+
+            // Convert to standard PrivateKey
+            privateKey = new JcaPEMKeyConverter()
+                    .setProvider("BC")
+                    .getPrivateKey(privateKeyInfo);
+        }
+
+        // --- Load public key ---
+        try (PEMParser parser = new PEMParser(new FileReader(filePath + PUBLIC_KEY_NAME))) {
+            Object obj = parser.readObject();
+
+            publicKey = new JcaPEMKeyConverter()
+                    .setProvider("BC")
+                    .getPublicKey(
+                            org.bouncycastle.asn1.x509.SubjectPublicKeyInfo.getInstance(obj)
+                    );
         }
 
         return new KeyPair(publicKey, privateKey);
