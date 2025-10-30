@@ -1,23 +1,47 @@
 services:
   apache-FE:
-    image: httpd:2.4-alpine
+    image: httpd:alpine
     container_name: apache_fe
     ports:
       - "80:80"   # expose HTTP port
       - "443:443" # expose HTTPS port (SSL)
+
+    # Irius Risk recommends
+    # 1. Bind files as read-only where possible
+    # 2. Drop all unnecessary capabilities and only add those required by the application
+
     volumes:
       # config (include SSL)
-      - ./apache/config/httpd.conf:/usr/local/apache2/conf/httpd.conf
-      - ./apache/config/apache_ssl.conf:/usr/local/apache2/conf.d/ssl/ssl.conf
+      - type: bind
+        source: ./apache/config/httpd.conf
+        target: /usr/local/apache2/conf/httpd.conf
+        read_only: true
+      - type: bind
+        source: ./apache/config/apache_ssl.conf
+        target: /usr/local/apache2/conf.d/ssl/ssl.conf
+        read_only: true 
       
       # certs folder
-      - ./apache/certs:/usr/local/apache2/conf.d/ssl
+      - type: bind
+        source: ./apache/certs
+        target: /usr/local/apache2/conf.d/ssl
+        read_only: true
       
       # save logs
       #- ./apache/logs:/usr/local/apache2/logs
 
       # web files
       #- ./apache/htdocs:/usr/local/apache2/htdocs/
+      
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE # Required to allow binding to privileged ports (< 1024)
+      # Required by Apache to switch from root to the non-root user (daemon)
+      - SETGID
+      - SETUID
+
+
     networks:
       - web-server-network
     restart: unless-stopped
