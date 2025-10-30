@@ -1,21 +1,21 @@
 package asymmetric;
 
 import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x509.BasicConstraints;
+import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.KeyUsage;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils;
-import org.bouncycastle.openssl.MiscPEMGenerator;
-import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
-import org.bouncycastle.openssl.jcajce.JcePEMEncryptorBuilder;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.pkcs.PKCS10CertificationRequestBuilder;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
 
-import java.io.FileWriter;
+import javax.security.auth.x500.X500Principal;
 import java.math.BigInteger;
 import java.security.KeyPair;
 import java.security.PrivateKey;
@@ -25,38 +25,52 @@ import java.util.Date;
 
 public class CertificateGenerator {
 
+    public static String[] usageNames = {
+            "Digital Signature",    // (0)
+            "Non-Repudiation",      // (1)
+            "Key Encipherment",     // (2)
+            "Data Encipherment",    // (3)
+            "Key Agreement",        // (4)
+            "KeyCert Sign",         // (5)
+            "CRL Sign",             // (6)
+            "Encipher Only",        // (7)
+            "Decipher Only"         // (8)
+    };
+
     public static X509Certificate generateCertificateSelfSigned(String subjectIssuerName, KeyPair keyPair,
                                                                 Date notBefore, Date notAfter, String sigAlg)
     throws Exception {
         X500Name subjectIssuer = new X500Name(subjectIssuerName);
 
-        // Generate random serial number
+        // generate random serial number
         BigInteger serialNumber = new BigInteger(64, new SecureRandom());
 
-        // Get public key info
+        // get CA public key info
         SubjectPublicKeyInfo publicKeyInfo = SubjectPublicKeyInfo.getInstance(
                 keyPair.getPublic().getEncoded()
         );
 
-        // Build the certificate
         X509v3CertificateBuilder certBuilder = new X509v3CertificateBuilder(
                 subjectIssuer,
                 serialNumber,
                 notBefore,
                 notAfter,
-                subjectIssuer,
+                subjectIssuer, // self-signed
                 publicKeyInfo
         );
 
-        // Create content signer using the private key
+        KeyUsage keyUsage = new KeyUsage(KeyUsage.keyCertSign | KeyUsage.cRLSign);
+        certBuilder.addExtension(Extension.keyUsage, true, keyUsage);
+        certBuilder.addExtension(Extension.basicConstraints, true, new BasicConstraints(true));
+
+
+        // create content signer using CA private key
         ContentSigner signer = new JcaContentSignerBuilder(sigAlg)
                 .setProvider("BC")
                 .build(keyPair.getPrivate());
 
-        // Generate the certificate
         X509CertificateHolder certHolder = certBuilder.build(signer);
 
-        // Convert to X509Certificate
         return new JcaX509CertificateConverter()
                 .setProvider("BC")
                 .getCertificate(certHolder);
@@ -74,13 +88,16 @@ public class CertificateGenerator {
     public static PKCS10CertificationRequest generateCSR(String subjectDN, KeyPair keyPair, String signatureAlg)
             throws Exception {
 
-        X500Name subject = new X500Name(subjectDN);
-
         PKCS10CertificationRequestBuilder p10Builder =
-                new JcaPKCS10CertificationRequestBuilder(subject, keyPair.getPublic());
+                new JcaPKCS10CertificationRequestBuilder(
+                        new X500Principal(subjectDN),
+                        keyPair.getPublic()
+                );
 
-        ContentSigner signer = new JcaContentSignerBuilder(signatureAlg)
-                .build(keyPair.getPrivate());
+        JcaContentSignerBuilder csBuilder =
+                new JcaContentSignerBuilder(signatureAlg)
+                        .setProvider("BC");
+        ContentSigner signer = csBuilder.build(keyPair.getPrivate());
 
         return p10Builder.build(signer);
     }
@@ -122,7 +139,6 @@ public class CertificateGenerator {
                 subjectPublicKeyInfo
         );
 
-        // Add basic extensions (optional, but good practice)
         JcaX509ExtensionUtils extUtils = new JcaX509ExtensionUtils();
         certBuilder.addExtension(
                 org.bouncycastle.asn1.x509.Extension.subjectKeyIdentifier,
@@ -130,7 +146,7 @@ public class CertificateGenerator {
                 extUtils.createSubjectKeyIdentifier(subjectPublicKeyInfo)
         );
 
-        // Sign certificate with CA’s private key
+        // sign certificate with CA’s private key
         ContentSigner signer = new JcaContentSignerBuilder(sigAlg)
                 .build(caPrivateKey);
 
@@ -141,6 +157,4 @@ public class CertificateGenerator {
                 .getCertificate(certHolder);
     }
 
-
-    //"CN=www.polimi.it, OU=Dipartimento di Elettronica, Informazione e Bioingegneria, O=Politecnico di Milano, L=Milano, ST=MI, C=IT"
 }
