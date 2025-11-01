@@ -30,9 +30,11 @@ public class AsymmetricMain {
 
         X509Certificate caCertificate = asymmetricKeysCA.getCACert();
         System.out.println("CA Certificate: " + caCertificate);
+
+        System.out.println("CA certificate serial number: " + caCertificate.getSerialNumber());
         for (int i = 0; i < caCertificate.getKeyUsage().length; i++) {
             if (caCertificate.getKeyUsage()[i])
-                System.out.println("Key usage: " + CertificateGenerator.usageNames[i]);
+                System.out.println("CA certificate key usage: " + CertificateGenerator.usageNames[i]);
         }
         try {
             certificate.verify(caCertificate.getPublicKey());

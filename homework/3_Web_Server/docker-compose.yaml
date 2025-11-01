@@ -6,9 +6,12 @@ services:
       - "80:80"   # expose HTTP port
       - "443:443" # expose HTTPS port (SSL)
 
-    # Irius Risk recommends
+    # Irius Risk recommends https://httpd.apache.org/docs/current/misc/security_tips.html
     # 1. Bind files as read-only where possible
     # 2. Drop all unnecessary capabilities and only add those required by the application
+    # 3. Enable logging for monitoring tool and alerting systems (eg. repeated failed logins, unusual pattern traffic, etc)
+    # (logs redirected to docker logging driver in this case to eventually use centralized logging/monitoring system)
+    # 4. Limit execution permissions to only those directories that require it (only cgi-bin in this case)
 
     volumes:
       # config (include SSL)
@@ -28,11 +31,17 @@ services:
         read_only: true
       
       # save logs
-      #- ./apache/logs:/usr/local/apache2/logs
+      # - ./apache/logs:/usr/local/apache2/logs
 
       # web files
       #- ./apache/htdocs:/usr/local/apache2/htdocs/
-      
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"   # Rotate logs at 10MB
+        max-file: "3"     # Keep 3 log files
+
     cap_drop:
       - ALL
     cap_add:
@@ -45,6 +54,27 @@ services:
     networks:
       - web-server-network
     restart: unless-stopped
+  
+
+  # ids: # comment to save resources 
+  #   image: jasonish/suricata:latest
+  #   container_name: ids_suricata
+    
+  #   # 1. Use the host's network stack
+  #   network_mode: "host" 
+    
+  #   # 2. Grant privileges to capture network traffic
+  #   privileged: true 
+    
+  #   # 3. Tell Suricata which interface to listen on (change with host interface)
+  #   command: -i eth0
+    
+  #   volumes:
+  #     - ./apache/logs/suricata-logs:/var/log/suricata
+    
+  #   restart: unless-stopped
+  #   # This service does not need to be on the 'web-server-network'
+  #   # because it is monitoring the host's traffic directly.
 
   tomcat-BE:
     image: tomcat:10.1-jdk17-temurin

@@ -1,7 +1,7 @@
 ############## SYMMETRIC ############
 
 # AES 256
-openssl rand -out aes_256_bin.key 32                       	# generate sym. key
+openssl rand -out aes_256_bin.key 32          # generate sym. key
 openssl rand -out aes_256_bin_iv.bin 16				# generate init vector
 
 ## encrypt
@@ -24,7 +24,7 @@ openssl enc -des-cbc -in plain_text.txt -out cipher_text_des.enc -provider legac
   -K $(cat des_hex.key) \
   -iv $(cat des_iv.iv)
 
-openssl enc -d -des -in cipher_text_des.enc -out decipher_text_des.txt -provider legacy \c
+openssl enc -d -des -in cipher_text_des.enc -out decipher_text_des.txt -provider legacy \
   -K $(cat des_hex.key) \
   -iv $(cat des_iv.iv) 
 
