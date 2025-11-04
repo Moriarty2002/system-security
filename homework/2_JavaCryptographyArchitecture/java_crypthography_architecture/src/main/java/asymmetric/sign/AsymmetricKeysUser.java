@@ -7,6 +7,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import java.io.*;
 import java.security.*;
+import java.security.cert.X509Certificate;
 
 import org.bouncycastle.openssl.*;
 import org.bouncycastle.openssl.jcajce.*;
@@ -22,7 +23,7 @@ public class AsymmetricKeysUser {
     private final String PRIVATE_KEY_NAME = "private_key_user.pem";
     private final String PUBLIC_KEY_NAME = "public_key_user.pem";
     private final String KEY_PSW= "Unsecure psw";
-    private final String USER_DN_NAME = "CN=www.unina.it, OU=Dipartimento di Elettronica e Informatica, O=Università degli studi di Napoli Federico II, L=Napoli, ST=NA, C=IT";
+    private final String USER_DN_NAME = "CN=localhost, OU=Dipartimento di Elettronica e Informatica, O=Università degli studi di Napoli Federico II, L=Napoli, ST=NA, C=IT";
     private final String SIGNATURE_ALG = "SHA256withRSA";
 
     AsymmetricKeysUser() {
@@ -114,5 +115,15 @@ public class AsymmetricKeysUser {
         }
 
         return new KeyPair(publicKey, privateKey);
+    }
+
+    public void saveSignedCert(X509Certificate certificate) {
+        // store public key as pem file
+        try (Writer writer = new FileWriter(CONFIG_DIR + PUBLIC_KEY_NAME);
+             JcaPEMWriter pemWriter = new JcaPEMWriter(writer)) {
+            pemWriter.writeObject(certificate);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
  }

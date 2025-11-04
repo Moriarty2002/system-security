@@ -1,11 +1,10 @@
 package asymmetric.sign;
 
 import asymmetric.CertificateGenerator;
+import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.io.*;
 import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
@@ -92,6 +91,14 @@ public class AsymmetricKeysCA {
             KeyStore ks = KeyStore.getInstance("PKCS12");
             ks.load(fis, KEYSTORE_PSW);
             Certificate certificate = ks.getCertificate(KEYSTORE_ALIAS);
+
+            // store public key as pem file
+            try (Writer writer = new FileWriter(CONFIG_DIR + "/CA_certificate.pem");
+                 JcaPEMWriter pemWriter = new JcaPEMWriter(writer)) {
+                pemWriter.writeObject(certificate);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
 
             return (X509Certificate) certificate;
         } catch (Exception e) {

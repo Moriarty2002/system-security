@@ -18,6 +18,7 @@ public class AsymmetricMain {
         PKCS10CertificationRequest csr = asymmetricKeysUser.generateCSR();
 
         X509Certificate certificate = asymmetricKeysCA.signCertificate(csr);
+        asymmetricKeysUser.saveSignedCert(certificate);
         System.out.println("Certificate: " + certificate);
 
         System.out.println("-------------------------------------------------");
