@@ -5,6 +5,13 @@ import org.bouncycastle.asn1.x509.BasicConstraints;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.KeyUsage;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.GeneralNames;
+import org.bouncycastle.asn1.x509.Extensions;
+import org.bouncycastle.asn1.x509.ExtensionsGenerator;
+import org.bouncycastle.asn1.pkcs.Attribute;
+import org.bouncycastle.asn1.ASN1Set;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
@@ -88,11 +95,42 @@ public class CertificateGenerator {
     public static PKCS10CertificationRequest generateCSR(String subjectDN, KeyPair keyPair, String signatureAlg)
             throws Exception {
 
+        // default: no SANs requested
+        return generateCSR(subjectDN, keyPair, signatureAlg, null);
+    }
+
+    /**
+     * Generate a CSR and optionally include Subject Alternative Names as an extension request.
+     * The SAN entries may be DNS names or IPv4 addresses (detected heuristically).
+     */
+    public static PKCS10CertificationRequest generateCSR(String subjectDN, KeyPair keyPair, String signatureAlg, String[] subjectAltNames)
+            throws Exception {
+
         PKCS10CertificationRequestBuilder p10Builder =
                 new JcaPKCS10CertificationRequestBuilder(
                         new X500Principal(subjectDN),
                         keyPair.getPublic()
                 );
+
+        // if SANs are provided, add them in the extensionRequest attribute of the CSR
+        if (subjectAltNames != null && subjectAltNames.length > 0) {
+            GeneralName[] gns = new GeneralName[subjectAltNames.length];
+            for (int i = 0; i < subjectAltNames.length; i++) {
+                String name = subjectAltNames[i];
+                if (name.matches("\\d+\\.\\d+\\.\\d+\\.\\d+")) {
+                    gns[i] = new GeneralName(GeneralName.iPAddress, name);
+                } else {
+                    gns[i] = new GeneralName(GeneralName.dNSName, name);
+                }
+            }
+
+            GeneralNames subjectAltName = new GeneralNames(gns);
+            ExtensionsGenerator extGen = new ExtensionsGenerator();
+            extGen.addExtension(Extension.subjectAlternativeName, false, subjectAltName);
+            Extensions exts = extGen.generate();
+
+            p10Builder.addAttribute(PKCSObjectIdentifiers.pkcs_9_at_extensionRequest, exts);
+        }
 
         JcaContentSignerBuilder csBuilder =
                 new JcaContentSignerBuilder(signatureAlg)
@@ -145,6 +183,23 @@ public class CertificateGenerator {
                 false,
                 extUtils.createSubjectKeyIdentifier(subjectPublicKeyInfo)
         );
+
+                // If the CSR contains an extensionRequest with SANs, copy the SAN extension into the issued certificate
+                Attribute[] attributes = csr.getAttributes();
+                if (attributes != null) {
+                        for (Attribute attr : attributes) {
+                                if (attr.getAttrType().equals(PKCSObjectIdentifiers.pkcs_9_at_extensionRequest)) {
+                                        ASN1Set attrValues = attr.getAttrValues();
+                                        if (attrValues != null && attrValues.size() > 0) {
+                                                Extensions reqExts = Extensions.getInstance(attrValues.getObjectAt(0));
+                                                org.bouncycastle.asn1.x509.Extension sanExt = reqExts.getExtension(Extension.subjectAlternativeName);
+                                                if (sanExt != null) {
+                                                        certBuilder.addExtension(Extension.subjectAlternativeName, sanExt.isCritical(), sanExt.getParsedValue());
+                                                }
+                                        }
+                                }
+                        }
+                }
 
         // sign certificate with CA’s private key
         ContentSigner signer = new JcaContentSignerBuilder(sigAlg)

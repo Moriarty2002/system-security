@@ -43,7 +43,10 @@ public class AsymmetricKeysUser {
         try {
             KeyPair keyPair = loadEncryptedKeyPEM(CONFIG_DIR, KEY_PSW);
 
-            return CertificateGenerator.generateCSR(USER_DN_NAME, keyPair, SIGNATURE_ALG);
+            // include SANs in the CSR so the CA can copy them into the issued certificate
+            // here we request DNS=localhost and IP=127.0.0.1 to match the CN used in USER_DN_NAME
+            String[] sans = new String[]{"localhost", "127.0.0.1"};
+            return CertificateGenerator.generateCSR(USER_DN_NAME, keyPair, SIGNATURE_ALG, sans);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

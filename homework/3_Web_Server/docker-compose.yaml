@@ -20,15 +20,15 @@ services:
         target: /usr/local/apache2/conf/httpd.conf
         read_only: true
       - type: bind
-        source: ./apache/config/ssl
-        target: /usr/local/apache2/conf.d/ssl
+        source: ./apache/config/ssl/apache_ssl.conf
+        target: /usr/local/apache2/conf/extra/httpd-ssl.conf
         read_only: true 
       
       # certs folder
-      # - type: bind
-      #   source: ./apache/certs
-      #   target: /usr/local/apache2/conf.d/ssl
-      #   read_only: true
+      - type: bind
+        source: ./apache/certs
+        target: /usr/local/apache2/conf/extra/certs
+        read_only: true
       
       # save logs
       # - ./apache/logs:/usr/local/apache2/logs
