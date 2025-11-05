@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3-Layer App</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        pre { background: #eee; padding: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Homework Application</h1>
+    <p>This page is served by Apache. Click the button to fetch data from the Flask backend via the Apache reverse proxy.</p>
+    
+    <button id="fetchButton">Fetch Data from /api/data</button>
+    
+    <h3>API Response:</h3>
+    <pre id="response"></pre>
+
+    <script>
+        document.getElementById("fetchButton").addEventListener("click", () => {
+            const responseEl = document.getElementById("response");
+            responseEl.textContent = "Loading...";
+
+            // This request goes to Apache (port 80).
+            // Apache will see the "/api/data" path and forward it 
+            // to the Flask backend (backend:5000).
+            fetch("/api/data")
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    responseEl.textContent = JSON.stringify(data, null, 2);
+                })
+                .catch(error => {
+                    responseEl.textContent = `Error: ${error.message}`;
+                });
+        });
+    </script>
+</body>
+</html>
