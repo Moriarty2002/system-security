@@ -19,6 +19,7 @@ EXPOSE 5000
 # Define environment variables
 ENV FLASK_APP=be.py
 ENV FLASK_RUN_HOST=0.0.0.0
+ENV PYTHONPATH=/app
 
 # Run the command to start the Flask server
 CMD ["flask", "run"]
