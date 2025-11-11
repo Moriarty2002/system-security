@@ -103,6 +103,14 @@
     (async function(){
       const me = await whoami();
       if(me) document.getElementById('who').textContent = me.username;
+
+      // Prevent admins from accessing moderator page
+      if (me && me.role === 'admin') {
+        alert('Access denied: Admins cannot access moderator pages');
+        location.href = '/admin.html';
+        return;
+      }
+
       await loadUsers();
 
       // If ?user= is provided, select that user

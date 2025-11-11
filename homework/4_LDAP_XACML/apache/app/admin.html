@@ -62,6 +62,8 @@
     // Add unit selector
     document.getElementById('unitSelectorContainer').appendChild(createUnitSelector(() => loadUsers()));
 
+    let currentUser = null;
+
     async function loadUsers() {
       const r = await fetch('/api/admin/users', { headers: headers() });
       if (!r.ok) return;
@@ -71,13 +73,15 @@
 
       j.users.forEach(u => {
         const tr = document.createElement('tr');
+        const quotaButton = (u.role === 'admin' || u.role === 'moderator') ? '' : `<button data-user="${u.username}" class="btn quota">Set Quota</button>`;
+        const deleteButton = (u.role === 'admin' || u.username === currentUser?.username) ? '' : `<button data-user="${u.username}" class="btn btn-danger delete">Delete</button>`;
         tr.innerHTML = `
           <td>${u.username}</td>
           <td>${formatBytes(u.usage)}</td>
           <td>${formatBytes(u.quota)}</td>
           <td>
-            <button data-user="${u.username}" class="btn quota">Set Quota</button>
-            <button data-user="${u.username}" class="btn listFiles">List Files</button>
+            ${quotaButton}
+            ${deleteButton}
           </td>
         `;
         tb.appendChild(tr);
@@ -94,19 +98,43 @@
 
           const quotaBytes = parseBytes(qValue, qUnit);
 
-          await fetch('/api/admin/users/' + encodeURIComponent(user) + '/quota', {
+          const response = await fetch('/api/admin/users/' + encodeURIComponent(user) + '/quota', {
             method: 'PUT',
             headers: headers(true),
             body: JSON.stringify({ quota: quotaBytes })
           });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+            alert('Failed to set quota: ' + (errorData.error || response.status));
+          } else {
+            alert('Quota updated successfully');
+          }
+
           await loadUsers();
         });
       });
 
-      document.querySelectorAll('button.listFiles').forEach(btn => {
-        btn.addEventListener('click', () => {
+      // Delete button handlers
+      document.querySelectorAll('button.delete').forEach(btn => {
+        btn.addEventListener('click', async () => {
           const user = btn.getAttribute('data-user');
-          location.href = '/moderator.html?user=' + encodeURIComponent(user);
+          if (!confirm(`Are you sure you want to delete user "${user}"? This action cannot be undone.`)) {
+            return;
+          }
+
+          const response = await fetch('/api/admin/users/' + encodeURIComponent(user), {
+            method: 'DELETE',
+            headers: headers()
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+            alert('Failed to delete user: ' + (errorData.error || response.status));
+          } else {
+            alert('User deleted successfully');
+            await loadUsers();
+          }
         });
       });
     }
@@ -131,6 +159,12 @@
         return alert('create failed: ' + (t.error || r.status));
       }
 
+      alert('User created successfully');
+      // Clear input fields
+      document.getElementById('newUser').value = '';
+      document.getElementById('newQuota').value = '';
+      document.getElementById('newPass').value = '';
+
       await loadUsers();
     });
 
@@ -141,8 +175,8 @@
 
     // Initialize
     (async function() {
-      const me = await whoami();
-      if (me) document.getElementById('who').textContent = me.username;
+      currentUser = await whoami();
+      if (currentUser) document.getElementById('who').textContent = currentUser.username;
       await loadUsers();
     })();
   </script>

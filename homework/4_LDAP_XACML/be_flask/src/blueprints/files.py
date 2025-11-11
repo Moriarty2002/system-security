@@ -17,6 +17,12 @@ def upload_file():
     try:
         username, user = authenticate_user()
 
+        # Prevent admin and moderator users from uploading files
+        user_role = getattr(user, 'role', 'user')
+        if user_role not in ['user']:
+            logger.warning(f"{user_role.title()} user {username} attempted to upload file")
+            return jsonify({'error': f'{user_role}s cannot upload files'}), 403
+
         if 'file' not in request.files:
             logger.warning(f"User {username} attempted upload without file")
             return jsonify({'error': 'no file part'}), 400
@@ -86,12 +92,17 @@ def upload_file():
 
 @files_bp.route('/files', methods=['GET'])
 def list_files():
-    """List files for user (or another user if moderator/admin)."""
+    """List files for user (or another user if moderator)."""
     username, user = authenticate_user()
 
-    # Allow moderators/admins to view other users' file lists via ?user=<username>
+    # Prevent admin users from listing files
+    if getattr(user, 'role', 'user') == 'admin':
+        logger.warning(f"Admin user {username} attempted to list files")
+        abort(403, description='admins cannot access file listings')
+
+    # Allow moderators to view other users' file lists via ?user=<username>
     target = request.args.get('user') or username
-    if target != username and getattr(user, 'role', '') not in ('admin', 'moderator'):
+    if target != username and getattr(user, 'role', '') != 'moderator':
         abort(403, description='insufficient role to view other users')
 
     files = get_user_files_list(target, current_app.config['STORAGE_DIR'])
@@ -117,9 +128,14 @@ def download_file(filename):
     """Download a file."""
     username, user = authenticate_user()
 
-    # Allow moderators/admins to download other users' files via ?user=<username>
+    # Prevent admin users from downloading files
+    if getattr(user, 'role', 'user') == 'admin':
+        logger.warning(f"Admin user {username} attempted to download file")
+        abort(403, description='admins cannot download files')
+
+    # Allow moderators to download other users' files via ?user=<username>
     target = request.args.get('user') or username
-    if target != username and getattr(user, 'role', '') not in ('admin', 'moderator'):
+    if target != username and getattr(user, 'role', '') != 'moderator':
         abort(403, description='insufficient role to download other users files')
 
     user_dir = os.path.join(current_app.config['STORAGE_DIR'], target)
@@ -136,10 +152,15 @@ def delete_file(filename):
     """Delete a file."""
     username, user = authenticate_user()
 
-    # Deletions only allowed by owner or admin (moderator cannot delete)
+    # Prevent admin users from deleting files
+    if getattr(user, 'role', 'user') == 'admin':
+        logger.warning(f"Admin user {username} attempted to delete file")
+        abort(403, description='admins cannot delete files')
+
+        # Deletions only allowed by owner (admins and moderators cannot delete)
     target = request.args.get('user') or username
-    if target != username and getattr(user, 'role', 'user') != 'admin':
-        abort(403, description='only owner or admin can delete files')
+    if target != username:
+        abort(403, description='only owner can delete files')
 
     user_dir = os.path.join(current_app.config['STORAGE_DIR'], target)
     path = os.path.join(user_dir, filename)
@@ -153,11 +174,11 @@ def delete_file(filename):
 
 @files_bp.route('/users', methods=['GET'])
 def list_usernames():
-    """Return a simple list of usernames. Allowed for admin and moderator roles."""
+    """Return a simple list of usernames. Allowed for moderator role only."""
     username, user = authenticate_user()
 
-    if getattr(user, 'role', '') not in ('admin', 'moderator'):
+    if getattr(user, 'role', '') != 'moderator':
         abort(403, description='insufficient role to list users')
 
-    users = User.query.order_by(User.username).all()
+    users = User.query.filter_by(role='user').order_by(User.username).all()
     return jsonify({'users': [u.username for u in users]})

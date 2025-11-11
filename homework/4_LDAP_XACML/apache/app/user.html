@@ -50,6 +50,14 @@
     async function load(){
       const me = await whoami();
       if(me) document.getElementById('who').textContent = me.username;
+
+      // Prevent admins and moderators from accessing user file management page
+      if (me && (me.role === 'admin' || me.role === 'moderator')) {
+        alert('Access denied: ' + me.role + 's cannot access file management');
+        location.href = me.role === 'admin' ? '/admin.html' : '/moderator.html';
+        return;
+      }
+
       await listFiles();
     }
 
@@ -87,10 +95,16 @@
       document.querySelectorAll('button[data-name]').forEach(b =>
         b.addEventListener('click', async () => {
           const name = b.getAttribute('data-name');
-          await fetch('/api/files/' + encodeURIComponent(name), {
+          if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+          const r = await fetch('/api/files/' + encodeURIComponent(name), {
             method: 'DELETE',
             headers: headers()
           });
+          if (!r.ok) {
+            const t = await r.json().catch(() => ({error: 'fail'}));
+            return alert('delete failed: ' + (t.error || r.status));
+          }
+          alert('File deleted successfully');
           await listFiles();
         })
       );
@@ -113,6 +127,9 @@
         const t = await r.json().catch(() => ({error: 'fail'}));
         return alert('upload failed: ' + (t.error || r.status));
       }
+      alert('File uploaded successfully');
+      // Clear file input
+      document.getElementById('fileInput').value = '';
       await listFiles();
     });
 

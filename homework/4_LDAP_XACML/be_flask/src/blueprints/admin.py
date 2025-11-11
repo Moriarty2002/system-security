@@ -60,14 +60,43 @@ def update_quota(username):
     _, user = authenticate_user()
     require_admin(user)
 
-    data = request.json or {}
-    quota = int(data.get('quota', 0))
-
     target_user = User.query.get(username)
     if not target_user:
         return jsonify({'error': 'user not found'}), 404
+
+    # Prevent setting quotas for admin and moderator users
+    if target_user.role in ('admin', 'moderator'):
+        return jsonify({'error': f'cannot set quota for {target_user.role} users'}), 403
+
+    data = request.json or {}
+    quota = int(data.get('quota', 0))
 
     target_user.quota = quota
     db.session.commit()
 
     return jsonify({'status': 'updated', 'username': username, 'quota': quota})
+
+
+@admin_bp.route('/users/<username>', methods=['DELETE'])
+def delete_user(username):
+    """Delete a user (admin only)."""
+    _, user = authenticate_user()
+    require_admin(user)
+
+    # Prevent admin from deleting themselves
+    if username == user.username:
+        return jsonify({'error': 'cannot delete yourself'}), 403
+
+    target_user = User.query.get(username)
+    if not target_user:
+        return jsonify({'error': 'user not found'}), 404
+
+    # Prevent deleting other admin users
+    if target_user.role == 'admin':
+        return jsonify({'error': 'cannot delete admin users'}), 403
+
+    # Delete the user
+    db.session.delete(target_user)
+    db.session.commit()
+
+    return jsonify({'status': 'deleted', 'username': username})
