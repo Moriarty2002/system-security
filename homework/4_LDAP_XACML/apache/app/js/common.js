@@ -76,8 +76,67 @@
     // Initialize theme on load
     document.addEventListener('DOMContentLoaded', initTheme);
 
+    // Unit management for quota display
+    let displayUnit = 'MB'; // default
+
+    function initUnit() {
+        const savedUnit = localStorage.getItem('displayUnit') || 'MB';
+        displayUnit = savedUnit;
+    }
+
+    function setDisplayUnit(unit) {
+        displayUnit = unit;
+        localStorage.setItem('displayUnit', unit);
+    }
+
+    function getDisplayUnit() {
+        return displayUnit;
+    }
+
+    function createUnitSelector(onChange, id = 'unitSelector') {
+        const select = document.createElement('select');
+        select.id = id;
+        select.className = 'unit-selector';
+        select.innerHTML = `
+            <option value="B">B</option>
+            <option value="KB">KB</option>
+            <option value="MB">MB</option>
+            <option value="GB">GB</option>
+            <option value="TB">TB</option>
+        `;
+        select.value = displayUnit;
+        select.addEventListener('change', () => {
+            setDisplayUnit(select.value);
+            if (onChange) onChange(select.value);
+        });
+        return select;
+    }
+
+    // Initialize unit on load
+    document.addEventListener('DOMContentLoaded', initUnit);
+
+    // Utility functions for quota display and input
+    function formatBytes(bytes, unit) {
+        if (unit === undefined) unit = displayUnit;
+        if (bytes === 0) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const unitIndex = units.indexOf(unit.toUpperCase());
+        if (unitIndex === -1) return bytes + ' B'; // fallback
+        const size = bytes / Math.pow(1024, unitIndex);
+        return size.toFixed(2) + ' ' + units[unitIndex];
+    }
+
+    function parseBytes(value, unit = 'B') {
+        const num = parseFloat(value);
+        if (isNaN(num)) return 0;
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const unitIndex = units.indexOf(unit.toUpperCase());
+        if (unitIndex === -1) return num; // assume bytes
+        return Math.round(num * Math.pow(1024, unitIndex));
+    }
+
     // Expose helpers
     global.appCommon = {
-        getToken, setToken, removeToken, headers, whoami, redirectToRole, downloadBlobResponse, createThemeToggle
+        getToken, setToken, removeToken, headers, whoami, redirectToRole, downloadBlobResponse, createThemeToggle, formatBytes, parseBytes, createUnitSelector, getDisplayUnit, setDisplayUnit
     };
 })(window);

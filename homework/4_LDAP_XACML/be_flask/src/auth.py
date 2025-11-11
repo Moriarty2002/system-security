@@ -1,6 +1,6 @@
 import datetime
 import os
-from typing import Tuple, Optional
+from typing import Tuple
 
 import jwt
 from flask import request, abort
@@ -53,12 +53,11 @@ def authenticate_user() -> Tuple[str, User]:
     return username, user
 
 
-def create_token(username: str, is_admin: bool, expires_in: int = 3600) -> str:
+def create_token(username: str, expires_in: int = 3600) -> str:
     """Create JWT token for user authentication.
 
     Args:
         username: User's username
-        is_admin: Whether user is admin
         expires_in: Token expiration time in seconds
 
     Returns:
@@ -69,11 +68,10 @@ def create_token(username: str, is_admin: bool, expires_in: int = 3600) -> str:
 
     # Get user role from database
     user = User.query.get(username)
-    role = getattr(user, 'role', 'user') if user else ('admin' if is_admin else 'user')
+    role = getattr(user, 'role', 'user') if user else 'user'
 
     payload = {
         'sub': username,
-        'is_admin': bool(is_admin),
         'role': role,
         'exp': exp
     }
@@ -89,7 +87,7 @@ def require_admin(user: User) -> None:
     Raises:
         403: User is not admin
     """
-    if not getattr(user, 'is_admin', False):
+    if getattr(user, 'role', 'user') != 'admin':
         abort(403, description='admin required')
 
 

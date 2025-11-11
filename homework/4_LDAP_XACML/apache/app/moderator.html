@@ -19,8 +19,15 @@
 
   <main class="container">
     <section class="section">
-      <label for="userSelect">View files for:</label>
-      <select id="userSelect" class="input"></select>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div>
+          <label for="userSelect">View files for:</label>
+          <select id="userSelect" class="input"></select>
+        </div>
+        <div id="unitSelectorContainer">
+          <label for="unitSelector" style="margin-right: 0.5rem; font-size: 14px;">Display unit:</label>
+        </div>
+      </div>
       <div id="usage" class="muted" style="margin-top:8px"></div>
       <table id="filesTable" class="table">
         <thead><tr><th>Name</th><th>Size</th><th>Actions</th></tr></thead>
@@ -31,10 +38,13 @@
 
   <script src="js/common.js"></script>
   <script>
-    const { headers, whoami, removeToken, downloadBlobResponse, createThemeToggle } = appCommon;
+    const { headers, whoami, removeToken, downloadBlobResponse, createThemeToggle, formatBytes, createUnitSelector } = appCommon;
 
     // Add theme toggle
     document.getElementById('themeToggleContainer').appendChild(createThemeToggle());
+
+    // Add unit selector
+    document.getElementById('unitSelectorContainer').appendChild(createUnitSelector(() => listFiles()));
 
     async function loadUsers(){
       const r = await fetch('/api/users', {headers: headers()});
@@ -68,11 +78,11 @@
       j.files.forEach(f => {
         const tr = document.createElement('tr');
         const dlBtn = `<button data-download="${encodeURIComponent(f.name)}" class="btn">Download</button>`;
-        tr.innerHTML = `<td>${f.name}</td><td>${f.size}</td><td>${dlBtn}</td>`;
+        tr.innerHTML = `<td>${f.name}</td><td>${formatBytes(f.size)}</td><td>${dlBtn}</td>`;
         tb.appendChild(tr);
       });
 
-      document.getElementById('usage').textContent = `Usage: ${j.usage} / Quota: ${j.quota}`;
+      document.getElementById('usage').textContent = `Usage: ${formatBytes(j.usage)} / Quota: ${formatBytes(j.quota)}`;
 
       // Wire download buttons
       document.querySelectorAll('button[data-download]').forEach(b =>

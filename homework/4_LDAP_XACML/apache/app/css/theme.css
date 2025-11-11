@@ -218,6 +218,21 @@ select.input {
   fill: var(--text);
 }
 
+/* Unit selector */
+.unit-selector {
+  background-color: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  font-size: 14px;
+}
+
+.unit-selector:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   body {

@@ -24,6 +24,12 @@
         <button type="submit" class="btn btn-primary">Upload</button>
       </form>
       <div id="usage" class="muted" style="margin-top:8px"></div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h4 style="margin: 0;">Your Files</h4>
+        <div id="unitSelectorContainer">
+          <label for="unitSelector" style="margin-right: 0.5rem; font-size: 14px;">Display unit:</label>
+        </div>
+      </div>
       <table id="filesTable" class="table" aria-live="polite">
         <thead><tr><th>Name</th><th>Size</th><th>Actions</th></tr></thead>
         <tbody></tbody>
@@ -33,10 +39,13 @@
 
   <script src="js/common.js"></script>
   <script>
-    const { headers, whoami, removeToken, downloadBlobResponse, createThemeToggle } = appCommon;
+    const { headers, whoami, removeToken, downloadBlobResponse, createThemeToggle, formatBytes, createUnitSelector } = appCommon;
 
     // Add theme toggle
     document.getElementById('themeToggleContainer').appendChild(createThemeToggle());
+
+    // Add unit selector
+    document.getElementById('unitSelectorContainer').appendChild(createUnitSelector(() => listFiles()));
 
     async function load(){
       const me = await whoami();
@@ -60,11 +69,11 @@
       j.files.forEach(f => {
         const tr = document.createElement('tr');
         const dlBtn = `<button data-download="${encodeURIComponent(f.name)}" class="btn">Download</button>`;
-        tr.innerHTML = `<td>${f.name}</td><td>${f.size}</td><td>${dlBtn} <button data-name="${f.name}" class="btn btn-danger">Delete</button></td>`;
+        tr.innerHTML = `<td>${f.name}</td><td>${formatBytes(f.size)}</td><td>${dlBtn} <button data-name="${f.name}" class="btn btn-danger">Delete</button></td>`;
         tb.appendChild(tr);
       });
 
-      document.getElementById('usage').textContent = `Usage: ${j.usage} / Quota: ${j.quota}`;
+      document.getElementById('usage').textContent = `Usage: ${formatBytes(j.usage)} / Quota: ${formatBytes(j.quota)}`;
 
       // Wire download buttons
       document.querySelectorAll('button[data-download]').forEach(b =>

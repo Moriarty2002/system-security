@@ -39,7 +39,8 @@ Init scripts
 Resetting the database
 1. Stop the containers: `docker compose down`
 2. Remove the docker volume `docker volume ls` and `docker volume rm <volume_name>`
-4. The init SQL scripts in `be_flask/db_init` will run on the fresh DB.
+4. Uncomment the init script binding in the docker compose file
+5. The init SQL scripts in `be_flask/db_init` will run on the fresh DB.
 
 Notes
 - If you prefer a named docker volume instead of a host bind, change `docker-compose.yaml`'s `db` service to use a named volume (e.g. `pgdata:/var/lib/postgresql/data`).

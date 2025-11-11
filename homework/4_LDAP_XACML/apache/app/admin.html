@@ -22,14 +22,27 @@
       <h3>Create user</h3>
       <div class="grid">
         <input id="newUser" class="input" placeholder="username">
-        <input id="newQuota" class="input" placeholder="quota bytes">
+        <div style="display: flex; gap: 0.5rem;">
+          <input id="newQuota" class="input" placeholder="quota" style="flex: 1;">
+          <select id="newQuotaUnit" class="input" style="width: auto;">
+            <option value="B">B</option>
+            <option value="KB">KB</option>
+            <option value="MB" selected>MB</option>
+            <option value="GB">GB</option>
+          </select>
+        </div>
         <input id="newPass" class="input" placeholder="password">
       </div>
       <button id="createBtn" class="btn btn-primary">Create</button>
     </section>
 
     <section class="section">
-      <h3>Users</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 style="margin: 0;">Users</h3>
+        <div id="unitSelectorContainer">
+          <label for="unitSelector" style="margin-right: 0.5rem; font-size: 14px;">Display unit:</label>
+        </div>
+      </div>
       <table id="usersTable" class="table">
         <thead>
           <th>User</th><th>Usage</th><th>Quota</th><th>Actions</th>
@@ -41,10 +54,13 @@
 
   <script src="js/common.js"></script>
   <script>
-    const { headers, whoami, removeToken, createThemeToggle } = appCommon;
+    const { headers, whoami, removeToken, createThemeToggle, formatBytes, parseBytes, createUnitSelector } = appCommon;
 
     // Add theme toggle
     document.getElementById('themeToggleContainer').appendChild(createThemeToggle());
+
+    // Add unit selector
+    document.getElementById('unitSelectorContainer').appendChild(createUnitSelector(() => loadUsers()));
 
     async function loadUsers() {
       const r = await fetch('/api/admin/users', { headers: headers() });
@@ -57,8 +73,8 @@
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${u.username}</td>
-          <td>${u.usage}</td>
-          <td>${u.quota}</td>
+          <td>${formatBytes(u.usage)}</td>
+          <td>${formatBytes(u.quota)}</td>
           <td>
             <button data-user="${u.username}" class="btn quota">Set Quota</button>
             <button data-user="${u.username}" class="btn listFiles">List Files</button>
@@ -71,13 +87,17 @@
       document.querySelectorAll('button.quota').forEach(btn => {
         btn.addEventListener('click', async () => {
           const user = btn.getAttribute('data-user');
-          const q = prompt('New quota for ' + user);
-          if (q === null) return;
+          const qValue = prompt('New quota value for ' + user + ' (e.g., 100)');
+          if (qValue === null) return;
+          const qUnit = prompt('Unit for quota (B, KB, MB, GB)', 'MB');
+          if (qUnit === null) return;
+
+          const quotaBytes = parseBytes(qValue, qUnit);
 
           await fetch('/api/admin/users/' + encodeURIComponent(user) + '/quota', {
             method: 'PUT',
             headers: headers(true),
-            body: JSON.stringify({ quota: parseInt(q, 10) })
+            body: JSON.stringify({ quota: quotaBytes })
           });
           await loadUsers();
         });
@@ -93,7 +113,9 @@
 
     document.getElementById('createBtn').addEventListener('click', async () => {
       const u = document.getElementById('newUser').value.trim();
-      const q = parseInt(document.getElementById('newQuota').value || '0', 10);
+      const qValue = document.getElementById('newQuota').value || '0';
+      const qUnit = document.getElementById('newQuotaUnit').value;
+      const q = parseBytes(qValue, qUnit);
       const p = document.getElementById('newPass').value || '';
 
       if (!u || !p) return alert('username and password required');

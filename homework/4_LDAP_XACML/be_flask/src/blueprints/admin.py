@@ -18,7 +18,7 @@ def list_users():
     for u in users:
         results.append({
             'username': u.username,
-            'is_admin': u.is_admin,
+            'role': u.role,
             'quota': u.quota,
             'usage': get_user_usage_bytes(u.username, current_app.config['STORAGE_DIR'])
         })
@@ -46,7 +46,6 @@ def create_user():
 
     new_user = User()
     new_user.username = username
-    new_user.is_admin = False
     new_user.quota = quota
     new_user.password_hash = hash_password(password)
     db.session.add(new_user)

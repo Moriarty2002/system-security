@@ -3,7 +3,7 @@ import logging
 from flask import Blueprint, jsonify, request, send_from_directory, abort, current_app
 from werkzeug.utils import secure_filename
 
-from ..auth import authenticate_user, require_admin
+from ..auth import authenticate_user
 from ..models import db, User
 from ..utils import get_user_usage_bytes, get_user_files_list, ensure_user_directory
 
@@ -138,7 +138,7 @@ def delete_file(filename):
 
     # Deletions only allowed by owner or admin (moderator cannot delete)
     target = request.args.get('user') or username
-    if target != username and not getattr(user, 'is_admin', False):
+    if target != username and getattr(user, 'role', 'user') != 'admin':
         abort(403, description='only owner or admin can delete files')
 
     user_dir = os.path.join(current_app.config['STORAGE_DIR'], target)

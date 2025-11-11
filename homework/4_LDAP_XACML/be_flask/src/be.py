@@ -65,16 +65,8 @@ def create_app(config_object=None) -> Flask:
 
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/auth')
-    # files_bp routes are added directly below
+    app.register_blueprint(files_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
-
-    # Add root-level routes directly to ensure they work
-    from .blueprints.files import upload_file, list_files, download_file, delete_file, list_usernames
-    app.add_url_rule('/upload', 'upload', upload_file, methods=['POST'])
-    app.add_url_rule('/files', 'files', list_files, methods=['GET'])
-    app.add_url_rule('/files/<path:filename>', 'download', download_file, methods=['GET'])
-    app.add_url_rule('/files/<path:filename>', 'delete', delete_file, methods=['DELETE'])
-    app.add_url_rule('/users', 'users', list_usernames, methods=['GET'])
 
     # Initialize storage
     with app.app_context():

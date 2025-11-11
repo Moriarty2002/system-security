@@ -1,5 +1,5 @@
 import logging
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, jsonify, request
 
 from ..auth import authenticate_user, create_token, verify_password, hash_password
 from ..models import db, User
@@ -10,7 +10,7 @@ auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/whoami', methods=['GET'])
 def whoami():
-    """Return current authenticated user's basic metadata (username, role, is_admin).
+    """Return current authenticated user's basic metadata (username, role).
 
     This endpoint helps the front-end adapt UI to the user's role.
     """
@@ -19,8 +19,7 @@ def whoami():
         logger.info(f"User {username} requested their profile information")
         return jsonify({
             'username': username,
-            'role': getattr(user, 'role', 'user'),
-            'is_admin': user.is_admin
+            'role': getattr(user, 'role', 'user')
         })
     except Exception as e:
         logger.error(f"Error in whoami endpoint: {str(e)}")
@@ -48,7 +47,7 @@ def login():
             logger.warning(f"Failed login attempt for user: {username}")
             return jsonify({'error': 'invalid credentials'}), 401
 
-        token = create_token(user.username, user.is_admin, expires_in=3600)
+        token = create_token(user.username, expires_in=3600)
         logger.info(f"Successful login for user: {username}")
         return jsonify({
             'access_token': token,
