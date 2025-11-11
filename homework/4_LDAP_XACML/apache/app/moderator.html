@@ -4,109 +4,109 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Moderator - Local Cloud</title>
-  <style>
-    body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial; padding:20px; max-width:900px; margin:auto }
-    header { display:flex; gap:12px; align-items:center }
-    select,input,button { padding:6px 8px }
-    table { width:100%; border-collapse:collapse; margin-top:12px }
-    th, td { padding:8px; border-bottom:1px solid #ddd }
-    .muted { color:#666 }
-  </style>
+  <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+  <link rel="stylesheet" href="css/theme.css">
 </head>
 <body>
-  <header>
+  <header class="header">
     <h1>Moderator View</h1>
-    <div style="margin-left:auto">
+    <div class="user-info">
       <span id="who" class="muted"></span>
-      <button id="logout">Logout</button>
+      <div id="themeToggleContainer"></div>
+      <button id="logout" class="btn">Logout</button>
     </div>
   </header>
 
-  <section style="margin-top:12px">
-    <label for="userSelect">View files for:</label>
-    <select id="userSelect"></select>
-    <div id="usage" class="muted" style="margin-top:8px"></div>
-    <table id="filesTable">
-      <thead><tr><th>Name</th><th>Size</th><th>Actions</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </section>
+  <main class="container">
+    <section class="section">
+      <label for="userSelect">View files for:</label>
+      <select id="userSelect" class="input"></select>
+      <div id="usage" class="muted" style="margin-top:8px"></div>
+      <table id="filesTable" class="table">
+        <thead><tr><th>Name</th><th>Size</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
 
   <script src="js/common.js"></script>
   <script>
-    const { headers, whoami, removeToken, downloadBlobResponse } = appCommon;
+    const { headers, whoami, removeToken, downloadBlobResponse, createThemeToggle } = appCommon;
 
-    async function loadUsers(){ 
-      const r = await fetch('/api/users', {headers: headers()}); 
-      if(!r.ok) return; 
-      const j = await r.json(); 
-      const sel = document.getElementById('userSelect'); 
-      sel.innerHTML = ''; 
-      sel.appendChild(new Option('(select user)', '')); 
-      j.users.forEach(u => sel.appendChild(new Option(u, u))); 
+    // Add theme toggle
+    document.getElementById('themeToggleContainer').appendChild(createThemeToggle());
+
+    async function loadUsers(){
+      const r = await fetch('/api/users', {headers: headers()});
+      if(!r.ok) return;
+      const j = await r.json();
+      const sel = document.getElementById('userSelect');
+      sel.innerHTML = '';
+      sel.appendChild(new Option('(select user)', ''));
+      j.users.forEach(u => sel.appendChild(new Option(u, u)));
     }
 
     async function downloadFile(name, target){
-      const url = '/api/files/' + encodeURIComponent(name) + 
+      const url = '/api/files/' + encodeURIComponent(name) +
                   (target ? ('?user=' + encodeURIComponent(target)) : '');
       const res = await fetch(url, { headers: headers() });
       await downloadBlobResponse(res, name);
     }
 
-    async function listFiles(){ 
-      const target = document.getElementById('userSelect').value; 
-      if(!target) return; 
-      
+    async function listFiles(){
+      const target = document.getElementById('userSelect').value;
+      if(!target) return;
+
       const r = await fetch('/api/files?user=' + encodeURIComponent(target), {
         headers: headers()
-      }); 
-      if(!r.ok) return; 
-      const j = await r.json(); 
-      const tb = document.querySelector('#filesTable tbody'); 
-      tb.innerHTML = ''; 
-      
-      j.files.forEach(f => { 
-        const tr = document.createElement('tr'); 
-        const dlBtn = `<button data-download="${encodeURIComponent(f.name)}">Download</button>`; 
-        tr.innerHTML = `<td>${f.name}</td><td>${f.size}</td><td>${dlBtn}</td>`; 
+      });
+      if(!r.ok) return;
+      const j = await r.json();
+      const tb = document.querySelector('#filesTable tbody');
+      tb.innerHTML = '';
+
+      j.files.forEach(f => {
+        const tr = document.createElement('tr');
+        const dlBtn = `<button data-download="${encodeURIComponent(f.name)}" class="btn">Download</button>`;
+        tr.innerHTML = `<td>${f.name}</td><td>${f.size}</td><td>${dlBtn}</td>`;
         tb.appendChild(tr);
-      }); 
-      
+      });
+
       document.getElementById('usage').textContent = `Usage: ${j.usage} / Quota: ${j.quota}`;
-      
+
       // Wire download buttons
-      document.querySelectorAll('button[data-download]').forEach(b => 
-        b.addEventListener('click', async () => { 
-          const name = decodeURIComponent(b.getAttribute('data-download')); 
-          await downloadFile(name, document.getElementById('userSelect').value); 
+      document.querySelectorAll('button[data-download]').forEach(b =>
+        b.addEventListener('click', async () => {
+          const name = decodeURIComponent(b.getAttribute('data-download'));
+          await downloadFile(name, document.getElementById('userSelect').value);
         })
       );
     }
 
     document.getElementById('userSelect').addEventListener('change', listFiles);
-    
-    document.getElementById('logout').addEventListener('click', () => { 
-      removeToken(); 
+
+    document.getElementById('logout').addEventListener('click', () => {
+      removeToken();
       location.href = 'index.html';
     });
 
-    (async function(){ 
-      const me = await whoami(); 
-      if(me) document.getElementById('who').textContent = me.username; 
+    (async function(){
+      const me = await whoami();
+      if(me) document.getElementById('who').textContent = me.username;
       await loadUsers();
-      
+
       // If ?user= is provided, select that user
       const params = new URLSearchParams(window.location.search);
       const pre = params.get('user');
       if (pre) {
-        setTimeout(() => { 
-          const sel = document.getElementById('userSelect'); 
-          for(let i = 0; i < sel.options.length; i++){ 
-            if(sel.options[i].value === pre){ 
-              sel.selectedIndex = i; 
+        setTimeout(() => {
+          const sel = document.getElementById('userSelect');
+          for(let i = 0; i < sel.options.length; i++){
+            if(sel.options[i].value === pre){
+              sel.selectedIndex = i;
               break;
-            } 
-          } 
+            }
+          }
           listFiles();
         }, 200);
       }

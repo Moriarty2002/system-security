@@ -4,43 +4,45 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Admin - Local Cloud</title>
-  <style>
-    body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial; padding:20px; max-width:1000px; margin:auto }
-    header { display:flex; gap:12px; align-items:center }
-    input, button { padding:6px 8px }
-    table { width:100%; border-collapse:collapse; margin-top:12px }
-    th, td { padding:8px; border-bottom:1px solid #ddd }
-    .muted { color:#666 }
-  </style>
+  <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+  <link rel="stylesheet" href="css/theme.css">
 </head>
 <body>
-  <header>
+  <header class="header">
     <h1>Admin Panel</h1>
-    <div style="margin-left:auto">
+    <div class="user-info">
       <span id="who" class="muted"></span>
-      <button id="logout">Logout</button>
+      <div id="themeToggleContainer"></div>
+      <button id="logout" class="btn">Logout</button>
     </div>
   </header>
 
-  <section style="margin-top:12px">
-    <h3>Create user</h3>
-    <input id="newUser" placeholder="username">
-    <input id="newQuota" placeholder="quota bytes">
-    <input id="newPass" placeholder="password">
-    <button id="createBtn">Create</button>
+  <main class="container">
+    <section class="section">
+      <h3>Create user</h3>
+      <input id="newUser" class="input" placeholder="username">
+      <input id="newQuota" class="input" placeholder="quota bytes">
+      <input id="newPass" class="input" placeholder="password">
+      <button id="createBtn" class="btn btn-primary">Create</button>
+    </section>
 
-    <h3 style="margin-top:14px">Users</h3>
-    <table id="usersTable">
-      <thead>
-        <th>User</th><th>Usage</th><th>Quota</th><th>Actions</th>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </section>
+    <section class="section">
+      <h3>Users</h3>
+      <table id="usersTable" class="table">
+        <thead>
+          <th>User</th><th>Usage</th><th>Quota</th><th>Actions</th>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
 
   <script src="js/common.js"></script>
   <script>
-    const { headers, whoami, removeToken } = appCommon;
+    const { headers, whoami, removeToken, createThemeToggle } = appCommon;
+
+    // Add theme toggle
+    document.getElementById('themeToggleContainer').appendChild(createThemeToggle());
 
     async function loadUsers() {
       const r = await fetch('/api/admin/users', { headers: headers() });
@@ -48,7 +50,7 @@
       const j = await r.json();
       const tb = document.querySelector('#usersTable tbody');
       tb.innerHTML = '';
-      
+
       j.users.forEach(u => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -56,20 +58,20 @@
           <td>${u.usage}</td>
           <td>${u.quota}</td>
           <td>
-            <button data-user="${u.username}" class="quota">Set Quota</button>
-            <button data-user="${u.username}" class="listFiles">List Files</button>
+            <button data-user="${u.username}" class="btn quota">Set Quota</button>
+            <button data-user="${u.username}" class="btn listFiles">List Files</button>
           </td>
         `;
         tb.appendChild(tr);
       });
-      
+
       // Attach event handlers
       document.querySelectorAll('button.quota').forEach(btn => {
         btn.addEventListener('click', async () => {
           const user = btn.getAttribute('data-user');
           const q = prompt('New quota for ' + user);
           if (q === null) return;
-          
+
           await fetch('/api/admin/users/' + encodeURIComponent(user) + '/quota', {
             method: 'PUT',
             headers: headers(true),
@@ -78,7 +80,7 @@
           await loadUsers();
         });
       });
-      
+
       document.querySelectorAll('button.listFiles').forEach(btn => {
         btn.addEventListener('click', () => {
           const user = btn.getAttribute('data-user');
@@ -91,20 +93,20 @@
       const u = document.getElementById('newUser').value.trim();
       const q = parseInt(document.getElementById('newQuota').value || '0', 10);
       const p = document.getElementById('newPass').value || '';
-      
+
       if (!u || !p) return alert('username and password required');
-      
+
       const r = await fetch('/api/admin/users', {
         method: 'POST',
         headers: headers(true),
         body: JSON.stringify({ username: u, quota: q, password: p })
       });
-      
+
       if (!r.ok) {
         const t = await r.json().catch(() => ({ error: 'fail' }));
         return alert('create failed: ' + (t.error || r.status));
       }
-      
+
       await loadUsers();
     });
 

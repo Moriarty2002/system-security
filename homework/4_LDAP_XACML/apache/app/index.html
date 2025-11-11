@@ -4,38 +4,40 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Local Cloud - Landing</title>
-    <style>
-        body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; padding: 24px; max-width:720px; margin:auto }
-        input, button { padding:8px 10px; font-size:14px }
-        header { display:flex; align-items:center; gap:12px }
-        .muted { color:#666 }
-    </style>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    <link rel="stylesheet" href="css/theme.css">
 </head>
 <body>
-    <header>
+    <header class="header">
         <h1>Local Cloud</h1>
-        <div style="margin-left:auto">
+        <div class="user-info">
             <span id="who" class="muted"></span>
-            <span id="role" class="muted" style="margin-left:8px"></span>
+            <span id="role" class="muted"></span>
+            <div id="themeToggleContainer"></div>
         </div>
     </header>
 
-    <p class="muted">This site serves separate pages per role. Login and you'll be directed to the page with the functionality available to your role.</p>
+    <main class="container">
+        <p class="muted">This site serves separate pages per role. Login and you'll be directed to the page with the functionality available to your role.</p>
 
-    <div style="margin-top:18px">
-        <input id="username" placeholder="username">
-        <input id="password" placeholder="password" type="password">
-        <button id="loginBtn">Login</button>
-        <button id="logoutBtn" style="display:none">Logout</button>
-    </div>
+        <div class="section">
+            <input id="username" class="input" placeholder="username">
+            <input id="password" class="input" placeholder="password" type="password">
+            <button id="loginBtn" class="btn btn-primary">Login</button>
+            <button id="logoutBtn" class="btn" style="display:none">Logout</button>
+        </div>
 
-    <div style="margin-top:18px">
-        <small class="muted">Quick test accounts: <code>admin/admin</code>, <code>moderator/moderator</code>, <code>alice/alice</code></small>
-    </div>
+        <div class="muted">
+            <small>Quick test accounts: <code>admin/admin</code>, <code>moderator/moderator</code>, <code>alice/alice</code></small>
+        </div>
+    </main>
 
     <script src="js/common.js"></script>
     <script>
-        const { whoami, setToken, removeToken, redirectToRole } = appCommon;
+        const { whoami, setToken, removeToken, redirectToRole, createThemeToggle } = appCommon;
+
+        // Add theme toggle
+        document.getElementById('themeToggleContainer').appendChild(createThemeToggle());
 
         document.getElementById('loginBtn').addEventListener('click', async () => {
             const u = document.getElementById('username').value.trim();
