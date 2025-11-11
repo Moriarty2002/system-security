@@ -1,28 +1,35 @@
-/* Global theme styles with dark mode support */
+/* Global theme styles with bright Material Design colors */
 :root {
-  --primary: #646cff;
-  --primary-hover: #535bf2;
-  --secondary: #6b7280;
-  --secondary-hover: #4b5563;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --background: #ffffff;
-  --surface: #f8fafc;
-  --text: #1f2937;
-  --text-muted: #6b7280;
-  --border: #e5e7eb;
+  --primary: #2196f3;
+  --primary-hover: #1976d2;
+  --secondary: #ff9800;
+  --secondary-hover: #f57c00;
+  --success: #4caf50;
+  --warning: #ff9800;
+  --danger: #f44336;
+  --background: #fafafa;
+  --surface: #ffffff;
+  --text: #212121;
+  --text-muted: #757575;
+  --border: #e0e0e0;
   --shadow: rgba(0, 0, 0, 0.1);
   --radius: 8px;
-  --font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-family: 'Roboto', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 [data-theme="dark"] {
-  --background: #0f172a;
-  --surface: #1e293b;
-  --text: #f1f5f9;
-  --text-muted: #94a3b8;
-  --border: #334155;
+  --primary: #7c4dff;
+  --primary-hover: #6a1b9a;
+  --secondary: #ba68c8;
+  --secondary-hover: #9c27b0;
+  --success: #81c784;
+  --warning: #ffb74d;
+  --danger: #ef5350;
+  --background: #121212;
+  --surface: #1e1e1e;
+  --text: #ffffff;
+  --text-muted: #b0b0b0;
+  --border: #333333;
   --shadow: rgba(0, 0, 0, 0.3);
 }
 
