@@ -29,6 +29,7 @@
         </div>
       </div>
       <div id="usage" class="muted" style="margin-top:8px"></div>
+      <div id="breadcrumb" style="margin-top: 5px; font-size: 14px;"></div>
       <table id="filesTable" class="table">
         <thead><tr><th>Name</th><th>Size</th><th>Actions</th></tr></thead>
         <tbody></tbody>
@@ -46,6 +47,8 @@
     // Add unit selector
     document.getElementById('unitSelectorContainer').appendChild(createUnitSelector(() => listFiles()));
 
+    let currentPath = '';
+
     async function loadUsers(){
       const r = await fetch('/api/users', {headers: headers()});
       if(!r.ok) return;
@@ -57,19 +60,46 @@
     }
 
     async function downloadFile(name, target){
-      const url = '/api/files/' + encodeURIComponent(name) +
+      const fullPath = currentPath ? currentPath + '/' + name : name;
+      const url = '/api/files/' + encodeURIComponent(fullPath) +
                   (target ? ('?user=' + encodeURIComponent(target)) : '');
       const res = await fetch(url, { headers: headers() });
       await downloadBlobResponse(res, name);
     }
 
+    function updateBreadcrumb() {
+      const breadcrumb = document.getElementById('breadcrumb');
+      if (!currentPath) {
+        breadcrumb.innerHTML = '<span class="muted">Root</span>';
+        return;
+      }
+      
+      const parts = currentPath.split('/');
+      let html = '<a href="#" onclick="navigateToPath(\'\')">Root</a>';
+      let path = '';
+      parts.forEach((part, index) => {
+        path += (path ? '/' : '') + part;
+        html += ' / <a href="#" onclick="navigateToPath(\'' + path + '\')">' + part + '</a>';
+      });
+      breadcrumb.innerHTML = html;
+    }
+
+    function navigateToPath(path) {
+      currentPath = path;
+      updateBreadcrumb();
+      listFiles();
+    }
+
+    // Make navigateToPath globally available for onclick handlers
+    window.navigateToPath = navigateToPath;
+
     async function listFiles(){
       const target = document.getElementById('userSelect').value;
       if(!target) return;
 
-      const r = await fetch('/api/files?user=' + encodeURIComponent(target), {
-        headers: headers()
-      });
+      const url = '/api/files?user=' + encodeURIComponent(target) + 
+                  (currentPath ? '&path=' + encodeURIComponent(currentPath) : '');
+      const r = await fetch(url, { headers: headers() });
       if(!r.ok) return;
       const j = await r.json();
       const tb = document.querySelector('#filesTable tbody');
@@ -77,8 +107,17 @@
 
       j.files.forEach(f => {
         const tr = document.createElement('tr');
-        const dlBtn = `<button data-download="${encodeURIComponent(f.name)}" class="btn">Download</button>`;
-        tr.innerHTML = `<td>${f.name}</td><td>${formatBytes(f.size)}</td><td>${dlBtn}</td>`;
+        let nameDisplay = f.name;
+        let actions = '';
+        
+        if (f.type === 'directory') {
+          nameDisplay = '📁 ' + f.name;
+          actions = `<button onclick="navigateToPath('${currentPath ? currentPath + '/' + f.name : f.name}')" class="btn btn-secondary">Open</button>`;
+        } else {
+          actions = `<button data-download="${encodeURIComponent(f.name)}" class="btn">Download</button>`;
+        }
+        
+        tr.innerHTML = `<td>${nameDisplay}</td><td>${f.type === 'directory' ? '-' : formatBytes(f.size)}</td><td>${actions}</td>`;
         tb.appendChild(tr);
       });
 
@@ -93,7 +132,11 @@
       );
     }
 
-    document.getElementById('userSelect').addEventListener('change', listFiles);
+    document.getElementById('userSelect').addEventListener('change', () => {
+      currentPath = '';
+      updateBreadcrumb();
+      listFiles();
+    });
 
     document.getElementById('logout').addEventListener('click', () => {
       removeToken();
@@ -112,6 +155,7 @@
       }
 
       await loadUsers();
+      updateBreadcrumb();
 
       // If ?user= is provided, select that user
       const params = new URLSearchParams(window.location.search);

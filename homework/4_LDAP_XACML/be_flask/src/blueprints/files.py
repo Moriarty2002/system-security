@@ -36,6 +36,18 @@ def upload_file():
         filename = secure_filename(filename_raw)
         user_dir = ensure_user_directory(username, current_app.config['STORAGE_DIR'])
 
+        # Get optional subdirectory path
+        subpath = request.form.get('path', '').strip()
+        if subpath.startswith('/') or '..' in subpath:
+            return jsonify({'error': 'invalid path'}), 400
+
+        upload_dir = os.path.join(user_dir, subpath) if subpath else user_dir
+        os.makedirs(upload_dir, exist_ok=True)
+
+        # Prevent uploading outside user directory
+        if not os.path.abspath(upload_dir).startswith(os.path.abspath(user_dir) + os.sep if subpath else os.path.abspath(user_dir)):
+            return jsonify({'error': 'path traversal detected'}), 403
+
         # Compute file size
         file_stream = file.stream
         file_stream.seek(0, os.SEEK_END)
@@ -55,7 +67,7 @@ def upload_file():
             return jsonify({'error': 'quota exceeded'}), 403
 
         # Save file to destination
-        save_path = os.path.join(user_dir, filename)
+        save_path = os.path.join(upload_dir, filename)
         try:
             # Ensure stream pointer at start
             try:
@@ -105,7 +117,11 @@ def list_files():
     if target != username and getattr(user, 'role', '') != 'moderator':
         abort(403, description='insufficient role to view other users')
 
-    files = get_user_files_list(target, current_app.config['STORAGE_DIR'])
+    subpath = request.args.get('path', '').strip()
+    if subpath.startswith('/') or '..' in subpath:
+        abort(400, description='invalid path')
+
+    files = get_user_files_list(target, current_app.config['STORAGE_DIR'], subpath)
     usage = get_user_usage_bytes(target, current_app.config['STORAGE_DIR'])
 
     quota = None
@@ -119,7 +135,8 @@ def list_files():
         'files': files,
         'usage': usage,
         'quota': quota,
-        'user': target
+        'user': target,
+        'path': subpath
     })
 
 
@@ -139,9 +156,13 @@ def download_file(filename):
         abort(403, description='insufficient role to download other users files')
 
     user_dir = os.path.join(current_app.config['STORAGE_DIR'], target)
+    full_path = os.path.join(user_dir, filename)
 
-    # Prevent path traversal by using send_from_directory
-    if not os.path.exists(os.path.join(user_dir, filename)):
+    # Prevent path traversal
+    if not os.path.abspath(full_path).startswith(os.path.abspath(user_dir) + os.sep):
+        abort(403, description='path traversal detected')
+
+    if not os.path.exists(full_path) or os.path.isdir(full_path):
         return jsonify({'error': 'file not found'}), 404
 
     return send_from_directory(user_dir, filename, as_attachment=True)
@@ -149,7 +170,7 @@ def download_file(filename):
 
 @files_bp.route('/files/<path:filename>', methods=['DELETE'])
 def delete_file(filename):
-    """Delete a file."""
+    """Delete a file or empty directory."""
     username, user = authenticate_user()
 
     # Prevent admin users from deleting files
@@ -163,22 +184,60 @@ def delete_file(filename):
         abort(403, description='only owner can delete files')
 
     user_dir = os.path.join(current_app.config['STORAGE_DIR'], target)
-    path = os.path.join(user_dir, filename)
+    full_path = os.path.join(user_dir, filename)
 
-    if not os.path.exists(path):
+    # Prevent path traversal
+    if not os.path.abspath(full_path).startswith(os.path.abspath(user_dir) + os.sep):
+        abort(403, description='path traversal detected')
+
+    if not os.path.exists(full_path):
         return jsonify({'error': 'file not found'}), 404
 
-    os.remove(path)
+    if os.path.isdir(full_path):
+        try:
+            os.rmdir(full_path)  # Only removes empty directories
+        except OSError:
+            return jsonify({'error': 'directory not empty'}), 400
+    else:
+        os.remove(full_path)
+
     return jsonify({'status': 'deleted', 'filename': filename, 'user': target})
 
 
-@files_bp.route('/users', methods=['GET'])
-def list_usernames():
-    """Return a simple list of usernames. Allowed for moderator role only."""
-    username, user = authenticate_user()
+@files_bp.route('/mkdir', methods=['POST'])
+def create_directory():
+    """Create a directory for the authenticated user."""
+    try:
+        username, user = authenticate_user()
 
-    if getattr(user, 'role', '') != 'moderator':
-        abort(403, description='insufficient role to list users')
+        # Prevent admin and moderator users from creating directories
+        user_role = getattr(user, 'role', 'user')
+        if user_role not in ['user']:
+            logger.warning(f"{user_role.title()} user {username} attempted to create directory")
+            return jsonify({'error': f'{user_role}s cannot create directories'}), 403
 
-    users = User.query.filter_by(role='user').order_by(User.username).all()
-    return jsonify({'users': [u.username for u in users]})
+        data = request.get_json()
+        if not data or 'path' not in data:
+            return jsonify({'error': 'path required'}), 400
+
+        dirname = data['path'].strip()
+        if not dirname or dirname.startswith('/') or '..' in dirname:
+            return jsonify({'error': 'invalid path'}), 400
+
+        user_dir = ensure_user_directory(username, current_app.config['STORAGE_DIR'])
+        full_path = os.path.join(user_dir, dirname)
+
+        # Prevent creating outside user directory
+        if not os.path.abspath(full_path).startswith(os.path.abspath(user_dir) + os.sep):
+            return jsonify({'error': 'path traversal detected'}), 403
+
+        if os.path.exists(full_path):
+            return jsonify({'error': 'directory already exists'}), 409
+
+        os.makedirs(full_path, exist_ok=True)
+
+        logger.info(f"User {username} created directory {dirname}")
+        return jsonify({'status': 'ok', 'path': dirname})
+    except Exception as e:
+        logger.error(f"Unexpected error in create_directory: {str(e)}")
+        return jsonify({'error': 'internal server error'}), 500
