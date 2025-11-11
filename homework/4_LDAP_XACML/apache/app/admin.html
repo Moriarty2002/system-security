@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin - File Sharing</title>
+  <style>
+    body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial; padding:20px; max-width:1000px; margin:auto }
+    header { display:flex; gap:12px; align-items:center }
+    input, button { padding:6px 8px }
+    table { width:100%; border-collapse:collapse; margin-top:12px }
+    th, td { padding:8px; border-bottom:1px solid #ddd }
+    .muted { color:#666 }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Admin Panel</h1>
+    <div style="margin-left:auto">
+      <span id="who" class="muted"></span>
+      <button id="logout">Logout</button>
+    </div>
+  </header>
+
+  <section style="margin-top:12px">
+    <h3>Create user</h3>
+    <input id="newUser" placeholder="username">
+    <input id="newQuota" placeholder="quota bytes">
+    <input id="newPass" placeholder="password">
+    <button id="createBtn">Create</button>
+
+    <h3 style="margin-top:14px">Users</h3>
+    <table id="usersTable"><thead><tr><th>User</th><th>Usage</th><th>Quota</th><th>Actions</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <script>
+    function headers(){ const t=localStorage.getItem('access_token'); return t?{'Authorization':'Bearer '+t,'Content-Type':'application/json'}:{'Content-Type':'application/json'} }
+    async function whoami(){ try{ const r=await fetch('/api/auth/whoami',{headers:headers()}); if(!r.ok) return null; return await r.json()}catch(e){return null} }
+    async function loadUsers(){ const r=await fetch('/api/admin/users',{headers:headers()}); if(!r.ok) return; const j=await r.json(); const tb=document.querySelector('#usersTable tbody'); tb.innerHTML=''; j.users.forEach(u=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${u.username}</td><td>${u.usage}</td><td>${u.quota}</td><td><button data-user="${u.username}" class="quota">Set Quota</button> <button data-user="${u.username}" class="listFiles">List Files</button></td>`; tb.appendChild(tr) }); document.querySelectorAll('button.quota').forEach(b=>b.addEventListener('click', async ()=>{ const user=b.getAttribute('data-user'); const q=prompt('New quota for '+user); if(q===null) return; await fetch('/api/admin/users/'+encodeURIComponent(user)+'/quota',{method:'PUT',headers:headers(),body:JSON.stringify({quota:parseInt(q,10)})}); await loadUsers() })); document.querySelectorAll('button.listFiles').forEach(b=>b.addEventListener('click', async ()=>{ const user=b.getAttribute('data-user'); location.href='/moderator.html?user='+encodeURIComponent(user) })) }
+
+    document.getElementById('createBtn').addEventListener('click', async ()=>{ const u=document.getElementById('newUser').value.trim(); const q=parseInt(document.getElementById('newQuota').value||'0',10); const p=document.getElementById('newPass').value||''; if(!u||!p) return alert('username and password required'); const r=await fetch('/api/admin/users',{method:'POST',headers:headers(),body:JSON.stringify({username:u,quota:q,password:p})}); if(!r.ok){ const t=await r.json().catch(()=>({error:'fail'})); return alert('create failed: '+(t.error||r.status)) } await loadUsers() })
+
+    document.getElementById('logout').addEventListener('click', ()=>{ localStorage.removeItem('access_token'); location.href='index.html' })
+
+    (async function(){ const me=await whoami(); if(me) document.getElementById('who').textContent=me.username; await loadUsers(); })();
+  </script>
+</body>
+</html>

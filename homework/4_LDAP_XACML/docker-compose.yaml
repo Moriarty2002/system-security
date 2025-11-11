@@ -1,5 +1,3 @@
-version: '3.8' # Specify a modern version for feature support
-
 services:
 
   # Layer 1: Web Server (Apache)
@@ -53,13 +51,26 @@ services:
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password123
-      POSTGRES_DB: homework_db
+      POSTGRES_DB: postgres_db
       # Add this variable so the app knows where to find the DB
       POSTGRES_HOST: db
+      # Use the Postgres service via a DATABASE_URL so the app doesn't fall back to sqlite
+      DATABASE_URL: "postgresql://admin:password123@db:5432/postgres_db"
+      # Seed default user passwords used by the Flask app on first-run
+      ADMIN_PASSWORD: admin
+      ALICE_PASSWORD: alice
+      MOD_PASSWORD: moderator
+      # Set a stable secret key for JWT signing (override in production)
+      #SECRET_KEY: dev-secret-key
       PYTHONUNBUFFERED: 1
     restart: unless-stopped # Added for robustness
     networks:
       - app_net # Connect to the custom network
+    # Persist uploaded files on the host so uploads survive container recreation
+    volumes:
+      - type: bind
+        source: ./be_flask/storage
+        target: /app/storage
     # This service doesn't need 'ports' as it's only accessed
     # by the apache-FE service over the internal 'app_net' network.
     expose:
@@ -72,28 +83,32 @@ services:
   # Layer 3: Database
   db:
     image: postgres:14-alpine
-    container_name: homework_db
+    container_name: postgres_db
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password123
-      POSTGRES_DB: homework_db
+      POSTGRES_DB: postgres_db
     volumes:
-      # Simplified and standard syntax for named volumes
-      - postgres_data:/var/lib/postgresql/data
+      # Use a named volume instead of bind mount
+      - pg_data:/var/lib/postgresql/data
+      - type: bind
+        source: ./be_flask/db_init
+        target: /docker-entrypoint-initdb.d
+        read_only: true
     ports:
       - "5432:5432"
-    restart: unless-stopped # Added for robustness
+    restart: unless-stopped
     networks:
-      - app_net # Connect to the custom network
+      - app_net
     healthcheck:
-      # Test to see if Postgres is ready to accept connections
-      test: ["CMD-SHELL", "pg_isready -U admin -d homework_db"]
+      test: ["CMD-SHELL", "pg_isready -U admin -d postgres_db"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+# Add volumes section at the top level
 volumes:
-  postgres_data:
+  pg_data:
 
 networks:
   app_net:

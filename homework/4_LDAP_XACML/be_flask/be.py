@@ -5,7 +5,7 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import BigInteger
+from sqlalchemy import BigInteger, inspect, text
 import jwt
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -33,40 +33,19 @@ class User(db.Model):
     __tablename__ = 'users'
     username = db.Column(db.String(128), primary_key=True)
     is_admin = db.Column(db.Boolean, nullable=False, default=False)
+    # role: 'user', 'admin', 'moderator' - kept as separate column to be explicit
+    role = db.Column(db.String(32), nullable=False, default='user')
     quota = db.Column(BigInteger, nullable=False, default=0)
     password_hash = db.Column(db.String(256), nullable=False)
 
 
 def ensure_environment():
     os.makedirs(STORAGE_DIR, exist_ok=True)
-    # Ensure DB tables and seed default users
-    with app.app_context():
-        db.create_all()
-        admin = User.query.get('admin')
-        if not admin:
-            # seed admin and a staging user with hashed passwords
-            # Defaults are intentionally simple for local testing; override with env vars in production.
-            admin_pass = os.environ.get('ADMIN_PASSWORD', 'admin')
-            alice_pass = os.environ.get('ALICE_PASSWORD', 'alice')
-            admin = User(username='admin', is_admin=True, quota=10 * 1024 * 1024 * 1024,
-                         password_hash=generate_password_hash(admin_pass))
-            alice = User(username='alice', is_admin=False, quota=100 * 1024 * 1024,
-                         password_hash=generate_password_hash(alice_pass))
-            db.session.add(admin)
-            db.session.add(alice)
-            db.session.commit()
-
-            # create sample storage for alice so login and file listing can be tested immediately
-            alice_dir = os.path.join(STORAGE_DIR, 'alice')
-            try:
-                os.makedirs(alice_dir, exist_ok=True)
-                sample_path = os.path.join(alice_dir, 'welcome.txt')
-                if not os.path.exists(sample_path):
-                    with open(sample_path, 'w', encoding='utf-8') as fh:
-                        fh.write('Hello alice! This is a sample file for testing.\n')
-            except Exception:
-                # non-fatal; storage is optional
-                pass
+    # Database schema and seed data are created by the Postgres init SQL
+    # scripts (./be_flask/db_init) mounted into the postgres container.
+    # We intentionally do not create or mutate the DB schema here so the
+    # database is authoritative for its schema and initial data.
+    # Create local storage directories only.
 
 
 def current_user():
@@ -104,8 +83,22 @@ def current_user():
 def create_token(username, is_admin, expires_in=3600):
     secret = os.environ.get('SECRET_KEY', 'dev-secret-key')
     exp = datetime.datetime.utcnow() + datetime.timedelta(seconds=expires_in)
-    payload = {'sub': username, 'is_admin': bool(is_admin), 'exp': exp}
+    # include role in token when available
+    with app.app_context():
+        u = User.query.get(username)
+        role = getattr(u, 'role', 'user') if u else ('admin' if is_admin else 'user')
+    payload = {'sub': username, 'is_admin': bool(is_admin), 'role': role, 'exp': exp}
     return jwt.encode(payload, secret, algorithm='HS256')
+
+
+@app.route('/auth/whoami', methods=['GET'])
+def auth_whoami():
+    """Return current authenticated user's basic metadata (username, role, is_admin).
+
+    This endpoint helps the front-end adapt UI to the user's role.
+    """
+    username, meta = current_user()
+    return jsonify({'username': username, 'role': getattr(meta, 'role', 'user'), 'is_admin': meta.is_admin})
 
 
 def user_usage_bytes(username):
@@ -149,10 +142,12 @@ def upload_file():
     if 'file' not in request.files:
         return jsonify({'error': 'no file part'}), 400
     f = request.files['file']
-    if f.filename == '':
+    # werkzeug's FileStorage.filename can be None in some cases; normalize to str
+    filename_raw = f.filename or ''
+    if filename_raw == '':
         return jsonify({'error': 'no selected file'}), 400
 
-    filename = secure_filename(f.filename)
+    filename = secure_filename(filename_raw)
     user_dir = os.path.join(STORAGE_DIR, username)
     os.makedirs(user_dir, exist_ok=True)
 
@@ -172,9 +167,30 @@ def upload_file():
         if current_usage + file_size > (user.quota or 0):
             return jsonify({'error': 'quota exceeded'}), 403
 
-        # Save file and commit (file system + DB are not strictly transactional here, but adequate for this simulation)
+        # Save file to destination. Use a streaming write to ensure the uploaded
+        # content is written to the final path (some servers may use temp files).
         save_path = os.path.join(user_dir, filename)
-        f.save(save_path)
+        try:
+            # ensure stream pointer at start
+            try:
+                file_stream.seek(0)
+            except Exception:
+                pass
+            with open(save_path, 'wb') as out_f:
+                while True:
+                    chunk = file_stream.read(8192)
+                    if not chunk:
+                        break
+                    out_f.write(chunk)
+                out_f.flush()
+                try:
+                    os.fsync(out_f.fileno())
+                except Exception:
+                    # fsync may not be available on all platforms/FS; ignore if it fails
+                    pass
+        except Exception as e:
+            # If saving fails, return an error so front-end can react
+            return jsonify({'error': 'failed to save file', 'detail': str(e)}), 500
         # No DB metadata to update for file uploads; commit to release locks
         db.session.commit()
 
@@ -184,15 +200,31 @@ def upload_file():
 @app.route('/files', methods=['GET'])
 def list_files():
     username, meta = current_user()
-    files = user_files_list(username)
-    usage = user_usage_bytes(username)
-    return jsonify({'files': files, 'usage': usage, 'quota': meta.quota})
+    # allow moderators/admins to view other users' file lists via ?user=<username>
+    target = request.args.get('user') or username
+    if target != username and getattr(meta, 'role', '') not in ('admin', 'moderator'):
+        abort(403, description='insufficient role to view other users')
+
+    files = user_files_list(target)
+    usage = user_usage_bytes(target)
+    quota = None
+    if target == username:
+        quota = meta.quota
+    else:
+        with app.app_context():
+            u = User.query.get(target)
+            quota = u.quota if u else 0
+    return jsonify({'files': files, 'usage': usage, 'quota': quota, 'user': target})
 
 
 @app.route('/files/<path:filename>', methods=['GET'])
 def download_file(filename):
     username, meta = current_user()
-    user_dir = os.path.join(STORAGE_DIR, username)
+    # allow moderators/admins to download other users' files via ?user=<username>
+    target = request.args.get('user') or username
+    if target != username and getattr(meta, 'role', '') not in ('admin', 'moderator'):
+        abort(403, description='insufficient role to download other users files')
+    user_dir = os.path.join(STORAGE_DIR, target)
     # prevent path traversal by using send_from_directory
     if not os.path.exists(os.path.join(user_dir, filename)):
         return jsonify({'error': 'file not found'}), 404
@@ -202,12 +234,27 @@ def download_file(filename):
 @app.route('/files/<path:filename>', methods=['DELETE'])
 def delete_file(filename):
     username, meta = current_user()
-    user_dir = os.path.join(STORAGE_DIR, username)
+    # Deletions only allowed by owner or admin (moderator cannot delete)
+    target = request.args.get('user') or username
+    if target != username and not getattr(meta, 'is_admin', False):
+        abort(403, description='only owner or admin can delete files')
+    user_dir = os.path.join(STORAGE_DIR, target)
     path = os.path.join(user_dir, filename)
     if not os.path.exists(path):
         return jsonify({'error': 'file not found'}), 404
     os.remove(path)
-    return jsonify({'status': 'deleted', 'filename': filename})
+    return jsonify({'status': 'deleted', 'filename': filename, 'user': target})
+
+
+@app.route('/users', methods=['GET'])
+def list_usernames():
+    """Return a simple list of usernames. Allowed for admin and moderator roles."""
+    username, meta = current_user()
+    if getattr(meta, 'role', '') not in ('admin', 'moderator'):
+        abort(403, description='insufficient role to list users')
+    with app.app_context():
+        users = User.query.order_by(User.username).all()
+        return jsonify({'users': [u.username for u in users]})
 
 
 # ---- Admin endpoints ----

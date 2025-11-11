@@ -1,225 +1,94 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File Sharing - Front End (Apache)</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>File Sharing - Landing</title>
     <style>
-        body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; padding: 20px; max-width: 900px; margin: auto }
-        header { display:flex; gap:12px; align-items:center; }
-        input, button, select { padding:6px 8px; font-size:14px }
-        .grid { display:flex; gap:20px; }
-        .col { flex:1 }
-        table { width:100%; border-collapse: collapse; margin-top:10px }
-        th, td { padding:8px; border-bottom:1px solid #ddd; text-align:left }
+        body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; padding: 24px; max-width:720px; margin:auto }
+        input, button { padding:8px 10px; font-size:14px }
+        header { display:flex; align-items:center; gap:12px }
         .muted { color:#666 }
     </style>
 </head>
 <body>
     <header>
-        <h1>File Sharing App</h1>
-        <div style="margin-left:auto" id="authArea">
+        <h1>File Sharing</h1>
+        <div style="margin-left:auto">
             <span id="who" class="muted"></span>
-            <input id="username" placeholder="username" style="display:none">
-            <input id="password" type="password" placeholder="password" style="display:none">
-            <button id="loginBtn">Login</button>
-            <button id="logoutBtn" style="display:none">Logout</button>
+            <span id="role" class="muted" style="margin-left:8px"></span>
         </div>
     </header>
 
-    <p class="muted">This page is static and served by Apache. All API calls go to <code>/api/...</code> which should be reverse-proxied by Apache to the Flask backend.</p>
+    <p class="muted">This site serves separate pages per role. Login and you'll be directed to the page with the functionality available to your role.</p>
 
-    <div class="grid">
-        <div class="col">
-            <h2>Upload</h2>
-            <form id="uploadForm">
-                <input type="file" id="fileInput" required>
-                <button type="submit">Upload</button>
-            </form>
+    <div style="margin-top:18px">
+        <input id="username" placeholder="username">
+        <input id="password" placeholder="password" type="password">
+        <button id="loginBtn">Login</button>
+        <button id="logoutBtn" style="display:none">Logout</button>
+    </div>
 
-            <h2 style="margin-top:20px">Your Files</h2>
-            <div id="usage" class="muted"></div>
-            <table id="filesTable" aria-live="polite">
-                <thead><tr><th>Name</th><th>Size</th><th>Actions</th></tr></thead>
-                <tbody></tbody>
-            </table>
-        </div>
-
-        <div class="col">
-            <h2>Admin</h2>
-            <div class="muted">Use the admin panel by logging in as <code>admin</code>. Admin requests require a logged-in admin (Authorization: Bearer &lt;token&gt;).</div>
-
-            <h3 style="margin-top:10px">Create User</h3>
-            <div>
-                <input id="newUser" placeholder="username">
-                <input id="newQuota" placeholder="quota bytes (e.g. 104857600)" style="width:160px">
-                <button id="createUser">Create</button>
-            </div>
-
-            <h3 style="margin-top:12px">Users</h3>
-            <table id="usersTable">
-                <thead><tr><th>User</th><th>Usage</th><th>Quota</th><th>Actions</th></tr></thead>
-                <tbody></tbody>
-            </table>
-        </div>
+    <div style="margin-top:18px">
+        <small class="muted">Quick test accounts: <code>admin/admin</code>, <code>moderator/moderator</code>, <code>alice/alice</code></small>
     </div>
 
     <script>
-        // Helper - return headers including Authorization if logged in, otherwise fall back to X-User for quick demos
         function currentHeaders() {
             const token = localStorage.getItem('access_token');
-            const headers = {};
-            if (token) headers['Authorization'] = 'Bearer ' + token;
-            else {
-                const user = document.getElementById('username')?.value || '';
-                if (user) headers['X-User'] = user;
-            }
-            return headers;
+            return token ? { 'Authorization': 'Bearer ' + token } : {};
         }
 
-        // UI helpers for login state
-        function setLoggedIn(username, token) {
-            localStorage.setItem('access_token', token);
-            document.getElementById('who').textContent = username;
-            document.getElementById('loginBtn').style.display = 'none';
-            document.getElementById('logoutBtn').style.display = '';
-            document.getElementById('username').style.display = 'none';
-            document.getElementById('password').style.display = 'none';
-        }
-
-        function setLoggedOut() {
-            localStorage.removeItem('access_token');
-            document.getElementById('who').textContent = '';
-            document.getElementById('loginBtn').style.display = '';
-            document.getElementById('logoutBtn').style.display = 'none';
-            document.getElementById('username').style.display = '';
-            document.getElementById('password').style.display = '';
-        }
-
-        async function listFiles() {
-            const res = await fetch('/api/files', { headers: currentHeaders() });
-            if (!res.ok) throw new Error('Failed to list files: ' + res.status);
-            const j = await res.json();
-            const tbody = document.querySelector('#filesTable tbody');
-            tbody.innerHTML = '';
-            j.files.forEach(f => {
-                const tr = document.createElement('tr');
-                const nameTd = document.createElement('td'); nameTd.textContent = f.name;
-                const sizeTd = document.createElement('td'); sizeTd.textContent = f.size + ' bytes';
-                const actionsTd = document.createElement('td');
-                const dl = document.createElement('a'); dl.href = '/api/files/' + encodeURIComponent(f.name);
-                dl.textContent = 'Download'; dl.style.marginRight = '8px';
-                const del = document.createElement('button'); del.textContent = 'Delete';
-                del.addEventListener('click', async () => {
-                    await fetch('/api/files/' + encodeURIComponent(f.name), { method: 'DELETE', headers: currentHeaders() });
-                    await refreshAll();
-                });
-                actionsTd.appendChild(dl); actionsTd.appendChild(del);
-                tr.appendChild(nameTd); tr.appendChild(sizeTd); tr.appendChild(actionsTd);
-                tbody.appendChild(tr);
-            });
-            document.getElementById('usage').textContent = `Usage: ${j.usage} bytes / Quota: ${j.quota} bytes`;
-        }
-
-        document.getElementById('uploadForm').addEventListener('submit', async (ev) => {
-            ev.preventDefault();
-            const file = document.getElementById('fileInput').files[0];
-            if (!file) return alert('Choose a file');
-            const form = new FormData(); form.append('file', file);
-            const res = await fetch('/api/upload', { method: 'POST', body: form, headers: currentHeaders() });
-            if (!res.ok) {
-                const t = await res.json().catch(()=>({error:'unknown'}));
-                return alert('Upload failed: ' + (t.error || res.status));
-            }
-            await listFiles();
-        });
-
-        document.getElementById('createUser').addEventListener('click', async () => {
-            const username = document.getElementById('newUser').value.trim();
-            const quota = parseInt(document.getElementById('newQuota').value || '0', 10);
-            if (!username) return alert('username required');
-            const res = await fetch('/api/admin/users', { method: 'POST', headers: Object.assign({'Content-Type':'application/json'}, currentHeaders()), body: JSON.stringify({ username, quota }) });
-            if (!res.ok) {
-                const t = await res.json().catch(()=>({error:'unknown'}));
-                return alert('Create failed: ' + (t.error || res.status));
-            }
-            await refreshAll();
-        });
-
-        async function listUsers() {
-            const res = await fetch('/api/admin/users', { headers: currentHeaders() });
-            const tbody = document.querySelector('#usersTable tbody');
-            tbody.innerHTML = '';
-            if (!res.ok) return; // not admin
-            const j = await res.json();
-            j.users.forEach(u => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `<td>${u.username}</td><td>${u.usage}</td><td>${u.quota}</td>`;
-                const actionsTd = document.createElement('td');
-                const setQuota = document.createElement('button'); setQuota.textContent='Set Quota';
-                setQuota.addEventListener('click', async () => {
-                    const newQ = prompt('New quota in bytes for ' + u.username, u.quota);
-                    if (newQ===null) return;
-                    await fetch('/api/admin/users/' + encodeURIComponent(u.username) + '/quota', { method:'PUT', headers: Object.assign({'Content-Type':'application/json'}, currentHeaders()), body: JSON.stringify({quota: parseInt(newQ,10)}) });
-                    await refreshAll();
-                });
-                actionsTd.appendChild(setQuota);
-                tr.appendChild(actionsTd);
-                tbody.appendChild(tr);
-            });
-        }
-
-        async function refreshAll() {
-            await listFiles();
-            await listUsers();
-        }
-
-        // Login / logout handlers
-        document.getElementById('loginBtn').addEventListener('click', async () => {
-            const usernameInput = document.getElementById('username');
-            const passwordInput = document.getElementById('password');
-            const username = usernameInput.value.trim();
-            const password = passwordInput.value || '';
-            // If inputs are hidden or empty, show them so user can type credentials
-            if (!username || !password) {
-                usernameInput.style.display = '';
-                passwordInput.style.display = '';
-                usernameInput.focus();
-                return;
-            }
+        async function whoami() {
             try {
-                const res = await fetch('/api/auth/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ username, password }) });
+                const r = await fetch('/api/auth/whoami', { headers: currentHeaders() });
+                if (!r.ok) return null;
+                return await r.json();
+            } catch(e) { return null; }
+        }
+
+        async function redirectToRole(me) {
+            if (!me) return;
+            // choose the page for this role
+            if (me.role === 'admin') location.href = '/admin.html';
+            else if (me.role === 'moderator') location.href = '/moderator.html';
+            else location.href = '/user.html';
+        }
+
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            const u = document.getElementById('username').value.trim();
+            const p = document.getElementById('password').value || '';
+            if (!u || !p) return alert('enter username and password');
+            try {
+                const res = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username: u, password: p }) });
                 if (!res.ok) {
                     const t = await res.json().catch(()=>({error:'login failed'}));
                     return alert('Login failed: ' + (t.error || res.status));
                 }
                 const j = await res.json();
-                setLoggedIn(username, j.access_token);
-                await refreshAll();
-            } catch (err) {
-                alert('Login error: ' + err.message);
-            }
+                localStorage.setItem('access_token', j.access_token);
+                const me = await whoami();
+                if (me) {
+                    document.getElementById('who').textContent = me.username;
+                    document.getElementById('role').textContent = '(' + me.role + ')';
+                }
+                await redirectToRole(me);
+            } catch (err) { alert('Login error: ' + err.message); }
         });
 
-        document.getElementById('logoutBtn').addEventListener('click', async () => {
-            setLoggedOut();
-            await refreshAll();
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('access_token');
+            document.getElementById('who').textContent = '';
+            document.getElementById('role').textContent = '';
+            document.getElementById('logoutBtn').style.display = 'none';
         });
 
-        // initial load - set UI according to token state
-        (function(){
+        (async function(){
             const token = localStorage.getItem('access_token');
             if (token) {
-                // token present; try to read a username from token (not decoding here), show generic state
-                document.getElementById('who').textContent = 'logged in';
-                document.getElementById('loginBtn').style.display = 'none';
-                document.getElementById('logoutBtn').style.display = '';
-                document.getElementById('username').style.display = 'none';
-                document.getElementById('password').style.display = 'none';
-            } else {
-                setLoggedOut();
+                const me = await whoami();
+                if (me) await redirectToRole(me);
             }
-            refreshAll().catch(()=>{});
         })();
     </script>
 </body>

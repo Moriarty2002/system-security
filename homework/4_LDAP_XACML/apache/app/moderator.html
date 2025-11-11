@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Moderator - File Sharing</title>
+  <style>
+    body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial; padding:20px; max-width:900px; margin:auto }
+    header { display:flex; gap:12px; align-items:center }
+    select,input,button { padding:6px 8px }
+    table { width:100%; border-collapse:collapse; margin-top:12px }
+    th, td { padding:8px; border-bottom:1px solid #ddd }
+    .muted { color:#666 }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Moderator View</h1>
+    <div style="margin-left:auto">
+      <span id="who" class="muted"></span>
+      <button id="logout">Logout</button>
+    </div>
+  </header>
+
+  <section style="margin-top:12px">
+    <label for="userSelect">View files for:</label>
+    <select id="userSelect"></select>
+    <div id="usage" class="muted" style="margin-top:8px"></div>
+    <table id="filesTable"><thead><tr><th>Name</th><th>Size</th><th>Actions</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <script>
+    function headers(){ const t=localStorage.getItem('access_token'); return t?{'Authorization':'Bearer '+t}:{} }
+    async function whoami(){ try{ const r=await fetch('/api/auth/whoami',{headers:headers()}); if(!r.ok) return null; return await r.json()}catch(e){return null} }
+    async function loadUsers(){ const r=await fetch('/api/users',{headers:headers()}); if(!r.ok) return; const j=await r.json(); const sel=document.getElementById('userSelect'); sel.innerHTML=''; sel.appendChild(new Option('(select user)','')); j.users.forEach(u=>sel.appendChild(new Option(u,u))); sel.addEventListener('change', ()=>listFiles()); }
+    async function downloadFile(name, target){
+      const url = '/api/files/' + encodeURIComponent(name) + (target ? ('?user=' + encodeURIComponent(target)) : '');
+      const res = await fetch(url, { headers: headers() });
+      if (!res.ok) { alert('Download failed: ' + res.status); return; }
+      const blob = await res.blob();
+      const cd = res.headers.get('content-disposition') || '';
+      let filename = name;
+      const m = /filename\*=UTF-8''([^;\n]+)/.exec(cd) || /filename="?([^";]+)"?/.exec(cd);
+      if (m) filename = decodeURIComponent(m[1]);
+      const urlObj = window.URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = urlObj; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(urlObj);
+    }
+
+    async function listFiles(){ const target=document.getElementById('userSelect').value; if(!target) return; const r=await fetch('/api/files?user='+encodeURIComponent(target),{headers:headers()}); if(!r.ok) return; const j=await r.json(); const tb=document.querySelector('#filesTable tbody'); tb.innerHTML=''; j.files.forEach(f=>{ const tr=document.createElement('tr'); const dlBtn = `<button data-download="${encodeURIComponent(f.name)}">Download</button>`; tr.innerHTML=`<td>${f.name}</td><td>${f.size}</td><td>${dlBtn}</td>`; tb.appendChild(tr) }); document.getElementById('usage').textContent=`Usage: ${j.usage} / Quota: ${j.quota}`
+      // wire download buttons
+      document.querySelectorAll('button[data-download]').forEach(b=>b.addEventListener('click', async ()=>{ const name=decodeURIComponent(b.getAttribute('data-download')); await downloadFile(name, document.getElementById('userSelect').value); }));
+    }
+
+    document.getElementById('logout').addEventListener('click', ()=>{ localStorage.removeItem('access_token'); location.href='index.html' })
+
+  (async function(){ const me=await whoami(); if(me) document.getElementById('who').textContent=me.username; await loadUsers();
+    // if ?user= is provided, select that user
+    const params = new URLSearchParams(window.location.search);
+    const pre = params.get('user');
+    if (pre) {
+      // wait a tick for options to populate
+      setTimeout(()=>{ const sel=document.getElementById('userSelect'); for(let i=0;i<sel.options.length;i++){ if(sel.options[i].value===pre){ sel.selectedIndex=i; break } } listFiles() }, 200);
+    }
+  })();
+  </script>
+</body>
+</html>
