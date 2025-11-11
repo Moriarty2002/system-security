@@ -91,10 +91,12 @@ services:
     volumes:
       # Use a named volume instead of bind mount
       - pg_data:/var/lib/postgresql/data
-      - type: bind
-        source: ./be_flask/db_init
-        target: /docker-entrypoint-initdb.d
-        read_only: true
+      
+      # INIT SCRIPT
+      # - type: bind 
+      #   source: ./be_flask/db_init
+      #   target: /docker-entrypoint-initdb.d
+      #   read_only: true
     ports:
       - "5432:5432"
     restart: unless-stopped
@@ -106,7 +108,6 @@ services:
       timeout: 5s
       retries: 5
 
-# Add volumes section at the top level
 volumes:
   pg_data:
 
