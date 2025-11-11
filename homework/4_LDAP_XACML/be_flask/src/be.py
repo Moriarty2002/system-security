@@ -11,12 +11,12 @@ import logging
 from flask import Flask
 from flask_cors import CORS
 
-from config import get_config
-from models import db
-from utils import ensure_storage_directory
-from blueprints.auth import auth_bp
-from blueprints.files import files_bp
-from blueprints.admin import admin_bp
+from .config import get_config
+from .models import db
+from .utils import ensure_storage_directory
+from .blueprints.auth import auth_bp
+from .blueprints.files import files_bp
+from .blueprints.admin import admin_bp
 
 
 def setup_logging(app: Flask) -> None:
@@ -69,7 +69,7 @@ def create_app(config_object=None) -> Flask:
     app.register_blueprint(admin_bp, url_prefix='/admin')
 
     # Add root-level routes directly to ensure they work
-    from blueprints.files import upload_file, list_files, download_file, delete_file, list_usernames
+    from .blueprints.files import upload_file, list_files, download_file, delete_file, list_usernames
     app.add_url_rule('/upload', 'upload', upload_file, methods=['POST'])
     app.add_url_rule('/files', 'files', list_files, methods=['GET'])
     app.add_url_rule('/files/<path:filename>', 'download', download_file, methods=['GET'])

@@ -1,8 +1,8 @@
 from flask import Blueprint, jsonify, request, current_app
 
-from auth import authenticate_user, require_admin, hash_password
-from models import db, User
-from utils import get_user_usage_bytes
+from ..auth import authenticate_user, require_admin, hash_password
+from ..models import db, User
+from ..utils import get_user_usage_bytes
 
 admin_bp = Blueprint('admin', __name__)
 

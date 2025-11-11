@@ -3,9 +3,9 @@ import logging
 from flask import Blueprint, jsonify, request, send_from_directory, abort, current_app
 from werkzeug.utils import secure_filename
 
-from auth import authenticate_user, require_admin
-from models import db, User
-from utils import get_user_usage_bytes, get_user_files_list, ensure_user_directory
+from ..auth import authenticate_user, require_admin
+from ..models import db, User
+from ..utils import get_user_usage_bytes, get_user_files_list, ensure_user_directory
 
 logger = logging.getLogger(__name__)
 files_bp = Blueprint('files', __name__)

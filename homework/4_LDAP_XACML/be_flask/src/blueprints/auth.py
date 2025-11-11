@@ -1,8 +1,8 @@
 import logging
 from flask import Blueprint, jsonify, request, current_app
 
-from auth import authenticate_user, create_token, verify_password, hash_password
-from models import db, User
+from ..auth import authenticate_user, create_token, verify_password, hash_password
+from ..models import db, User
 
 logger = logging.getLogger(__name__)
 auth_bp = Blueprint('auth', __name__)

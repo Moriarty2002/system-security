@@ -6,7 +6,7 @@ import jwt
 from flask import request, abort
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from models import db, User
+from .models import db, User
 
 
 def authenticate_user() -> Tuple[str, User]:

@@ -17,7 +17,7 @@ COPY . .
 EXPOSE 5000
 
 # Define environment variables
-ENV FLASK_APP=be.py
+ENV FLASK_APP=src/be.py
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV PYTHONPATH=/app
 
