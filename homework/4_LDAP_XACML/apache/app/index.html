@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>File Sharing - Landing</title>
+    <title>Local Cloud - Landing</title>
     <style>
         body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; padding: 24px; max-width:720px; margin:auto }
         input, button { padding:8px 10px; font-size:14px }
@@ -13,7 +13,7 @@
 </head>
 <body>
     <header>
-        <h1>File Sharing</h1>
+        <h1>Local Cloud</h1>
         <div style="margin-left:auto">
             <span id="who" class="muted"></span>
             <span id="role" class="muted" style="margin-left:8px"></span>
@@ -33,27 +33,9 @@
         <small class="muted">Quick test accounts: <code>admin/admin</code>, <code>moderator/moderator</code>, <code>alice/alice</code></small>
     </div>
 
+    <script src="js/common.js"></script>
     <script>
-        function currentHeaders() {
-            const token = localStorage.getItem('access_token');
-            return token ? { 'Authorization': 'Bearer ' + token } : {};
-        }
-
-        async function whoami() {
-            try {
-                const r = await fetch('/api/auth/whoami', { headers: currentHeaders() });
-                if (!r.ok) return null;
-                return await r.json();
-            } catch(e) { return null; }
-        }
-
-        async function redirectToRole(me) {
-            if (!me) return;
-            // choose the page for this role
-            if (me.role === 'admin') location.href = '/admin.html';
-            else if (me.role === 'moderator') location.href = '/moderator.html';
-            else location.href = '/user.html';
-        }
+        const { whoami, setToken, removeToken, redirectToRole } = appCommon;
 
         document.getElementById('loginBtn').addEventListener('click', async () => {
             const u = document.getElementById('username').value.trim();
@@ -66,7 +48,7 @@
                     return alert('Login failed: ' + (t.error || res.status));
                 }
                 const j = await res.json();
-                localStorage.setItem('access_token', j.access_token);
+                setToken(j.access_token);
                 const me = await whoami();
                 if (me) {
                     document.getElementById('who').textContent = me.username;
@@ -77,18 +59,15 @@
         });
 
         document.getElementById('logoutBtn').addEventListener('click', () => {
-            localStorage.removeItem('access_token');
+            removeToken();
             document.getElementById('who').textContent = '';
             document.getElementById('role').textContent = '';
             document.getElementById('logoutBtn').style.display = 'none';
         });
 
         (async function(){
-            const token = localStorage.getItem('access_token');
-            if (token) {
-                const me = await whoami();
-                if (me) await redirectToRole(me);
-            }
+            const me = await whoami();
+            if (me) await redirectToRole(me);
         })();
     </script>
 </body>

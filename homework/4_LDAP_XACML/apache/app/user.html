@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>User - File Sharing</title>
+  <title>User - Local Cloud</title>
   <style>
     body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial; padding:20px; max-width:800px; margin:auto }
     header { display:flex; gap:12px; align-items:center }
@@ -34,46 +34,84 @@
     </table>
   </section>
 
+  <script src="js/common.js"></script>
   <script>
-    function headers(){ const t=localStorage.getItem('access_token'); return t?{'Authorization':'Bearer '+t}:{} }
-    async function whoami(){ try{ const r=await fetch('/api/auth/whoami',{headers:headers()}); if(!r.ok) return null; return await r.json()}catch(e){return null} }
-    async function load(){ const me=await whoami(); if(me) document.getElementById('who').textContent=me.username; await listFiles() }
+    const { headers, whoami, removeToken, downloadBlobResponse } = appCommon;
+
+    async function load(){ 
+      const me = await whoami(); 
+      if(me) document.getElementById('who').textContent = me.username; 
+      await listFiles();
+    }
+
     async function downloadFile(name){
       const url = '/api/files/' + encodeURIComponent(name);
       const res = await fetch(url, { headers: headers() });
-      if (!res.ok) { alert('Download failed: ' + res.status); return; }
-      const blob = await res.blob();
-      const cd = res.headers.get('content-disposition') || '';
-      let filename = name;
-      // try to parse filename from content-disposition
-      const m = /filename\*=UTF-8''([^;\n]+)/.exec(cd) || /filename="?([^";]+)"?/.exec(cd);
-      if (m) filename = decodeURIComponent(m[1]);
-      const urlObj = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = urlObj; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(urlObj);
+      await downloadBlobResponse(res, name);
     }
 
     async function listFiles(){
-      const r=await fetch('/api/files',{headers:headers()});
+      const r = await fetch('/api/files', {headers: headers()});
       if(!r.ok) return;
-      const j=await r.json();
-      const tb=document.querySelector('#filesTable tbody'); tb.innerHTML='';
-      j.files.forEach(f=>{
-        const tr=document.createElement('tr');
+      const j = await r.json();
+      const tb = document.querySelector('#filesTable tbody'); 
+      tb.innerHTML = '';
+      
+      j.files.forEach(f => {
+        const tr = document.createElement('tr');
         const dlBtn = `<button data-download="${encodeURIComponent(f.name)}">Download</button>`;
         tr.innerHTML = `<td>${f.name}</td><td>${f.size}</td><td>${dlBtn} <button data-name="${f.name}">Delete</button></td>`;
         tb.appendChild(tr);
       });
-      document.getElementById('usage').textContent=`Usage: ${j.usage} / Quota: ${j.quota}`;
-      // wire download buttons
-      document.querySelectorAll('button[data-download]').forEach(b=>b.addEventListener('click', async ()=>{ const name=decodeURIComponent(b.getAttribute('data-download')); await downloadFile(name); }));
-      // wire delete buttons
-      document.querySelectorAll('button[data-name]').forEach(b=>b.addEventListener('click', async ()=>{ const name=b.getAttribute('data-name'); await fetch('/api/files/'+encodeURIComponent(name),{method:'DELETE',headers:headers()}); await listFiles() }))
+      
+      document.getElementById('usage').textContent = `Usage: ${j.usage} / Quota: ${j.quota}`;
+      
+      // Wire download buttons
+      document.querySelectorAll('button[data-download]').forEach(b => 
+        b.addEventListener('click', async () => { 
+          const name = decodeURIComponent(b.getAttribute('data-download')); 
+          await downloadFile(name); 
+        })
+      );
+      
+      // Wire delete buttons
+      document.querySelectorAll('button[data-name]').forEach(b => 
+        b.addEventListener('click', async () => { 
+          const name = b.getAttribute('data-name'); 
+          await fetch('/api/files/' + encodeURIComponent(name), {
+            method: 'DELETE', 
+            headers: headers()
+          }); 
+          await listFiles();
+        })
+      );
     }
 
-    document.getElementById('uploadForm').addEventListener('submit', async e=>{ e.preventDefault(); const file=document.getElementById('fileInput').files[0]; if(!file) return alert('choose a file'); const form=new FormData(); form.append('file',file); const r=await fetch('/api/upload',{method:'POST',body:form,headers:headers()}); if(!r.ok){ const t=await r.json().catch(()=>({error:'fail'})); return alert('upload failed: '+(t.error||r.status)) } await listFiles() })
+    document.getElementById('uploadForm').addEventListener('submit', async e => { 
+      e.preventDefault(); 
+      const file = document.getElementById('fileInput').files[0]; 
+      if(!file) return alert('choose a file'); 
+      
+      const form = new FormData(); 
+      form.append('file', file); 
+      const r = await fetch('/api/upload', {
+        method: 'POST', 
+        body: form, 
+        headers: headers()
+      }); 
+      
+      if(!r.ok){ 
+        const t = await r.json().catch(() => ({error: 'fail'})); 
+        return alert('upload failed: ' + (t.error || r.status));
+      } 
+      await listFiles();
+    });
 
-    document.getElementById('logout').addEventListener('click', ()=>{ localStorage.removeItem('access_token'); location.href='index.html' })
+    document.getElementById('logout').addEventListener('click', () => { 
+      removeToken(); 
+      location.href = 'index.html';
+    });
+
     load();
   </script>
 </body>

@@ -1,4 +1,31 @@
-Postgres persistence and init scripts
+# Security steps to do:
+- change token management to use HTTP-Only Cookies:
+```
+// Server-side (your backend)
+// Set cookie on login
+res.cookie('access_token', token, {
+  httpOnly: true,  // JavaScript can't access
+  secure: true,    // HTTPS only
+  sameSite: 'strict',
+  maxAge: 24 * 60 * 60 * 1000 // 24 hours
+});
+
+// Frontend - no token handling needed!
+// Browser automatically sends cookie with each request
+async function headers(includeJson){
+  const h = {};
+  if (includeJson) h['Content-Type'] = 'application/json';
+  // No Authorization header needed - cookie is automatic
+  return h;
+}
+
+// Pros: Most secure (immune to XSS), automatic persistence
+// Cons: Requires backend changes, CSRF protection needed
+```
+
+
+
+# Postgres persistence and init scripts
 
 This directory contains the Flask backend and init SQL for the homework project.
 
@@ -11,9 +38,7 @@ Init scripts
 
 Resetting the database
 1. Stop the containers: `docker compose down`
-2. Remove or rename the host folder `postgres_data/` to force reinitialization.
-   - Example: `mv postgres_data postgres_data.bak`
-3. Start again: `docker compose up -d`
+2. Remove the docker volume `docker volume ls` and `docker volume rm <volume_name>`
 4. The init SQL scripts in `be_flask/db_init` will run on the fresh DB.
 
 Notes
