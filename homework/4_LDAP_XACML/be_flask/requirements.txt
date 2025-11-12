@@ -5,3 +5,11 @@ Werkzeug>=2.0
 Flask-SQLAlchemy>=3.0
 psycopg2-binary>=2.9
 PyJWT>=2.0
+
+# LDAP Integration (uncomment when implementing LDAP authentication)
+# python-ldap>=3.4.0
+# ldap3>=2.9.1
+
+# XACML Integration (uncomment when implementing XACML policy evaluation)
+# pyxacml>=0.1.0
+# requests>=2.25.0  # For HTTP-based PDP communication

@@ -23,6 +23,57 @@ async function headers(includeJson){
 // Cons: Requires backend changes, CSRF protection needed
 ```
 
+# LDAP and XACML Integration Preparation
+
+This project has been prepared for LDAP authentication and XACML policy-based access control integration.
+
+## LDAP Configuration
+
+LDAP settings are configured in `be_flask/src/config.py`:
+- `LDAP_ENABLED`: Enable/disable LDAP authentication
+- `LDAP_SERVER`: LDAP server URL
+- `LDAP_BASE_DN`: Base DN for searches
+- `LDAP_BIND_USER/PASSWORD`: Service account credentials
+- `LDAP_USER_SEARCH_FILTER`: User search filter template
+- `LDAP_USER_ATTRIBUTES`: Mapping of LDAP attributes to user properties
+
+LDAP authentication module: `be_flask/src/ldap_auth.py` (placeholder implementation)
+
+## XACML Configuration
+
+XACML settings are configured in `be_flask/src/config.py`:
+- `XACML_ENABLED`: Enable/disable XACML policy evaluation
+- `XACML_PDP_URL`: Policy Decision Point endpoint
+- `XACML_POLICY_FILE`: Local policy file path
+- `XACML_REQUEST_TIMEOUT`: Request timeout for PDP calls
+
+XACML policy evaluation module: `be_flask/src/xacml_policy.py` (placeholder implementation)
+
+Sample policy file: `be_flask/policies/default-policy.xml`
+
+## Docker Services
+
+An OpenLDAP service is prepared in `docker-compose.yaml` (commented out):
+- Uncomment the `ldap` service to enable LDAP server
+- Configure environment variables for domain and admin credentials
+
+## Dependencies
+
+Potential dependencies are listed in `be_flask/requirements.txt` (commented out):
+- `python-ldap` or `ldap3` for LDAP integration
+- `pyxacml` for XACML policy evaluation
+- `requests` for HTTP-based PDP communication
+
+## Next Steps
+
+To implement LDAP and XACML:
+1. Uncomment and install required dependencies
+2. Implement actual LDAP authentication in `ldap_auth.py`
+3. Implement XACML policy evaluation in `xacml_policy.py`
+4. Uncomment LDAP service in `docker-compose.yaml`
+5. Update authentication flow to support LDAP
+6. Integrate XACML checks in access control logic
+
 
 
 # Postgres persistence and init scripts

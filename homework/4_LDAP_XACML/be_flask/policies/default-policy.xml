@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Sample XACML Policy - Placeholder for future implementation -->
+<!-- This is a basic template. Replace with actual XACML policy when implementing. -->
+<Policy xmlns="urn:oasis:names:tc:xacml:3.0:core:schema:wd-17"
+        PolicyId="sample-policy"
+        Version="1.0"
+        RuleCombiningAlgId="urn:oasis:names:tc:xacml:3.0:rule-combining-algorithm:deny-overrides">
+
+    <Description>Sample XACML Policy for File Access Control</Description>
+
+    <Target>
+        <AnyOf>
+            <AllOf>
+                <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                    <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">file</AttributeValue>
+                    <AttributeDesignator AttributeId="urn:oasis:names:tc:xacml:1.0:resource:resource-type"
+                                       DataType="http://www.w3.org/2001/XMLSchema#string"
+                                       MustBePresent="true"/>
+                </Match>
+            </AllOf>
+        </AnyOf>
+    </Target>
+
+    <!-- Rule 1: Admin can do anything -->
+    <Rule RuleId="admin-full-access" Effect="Permit">
+        <Description>Administrators have full access to all resources</Description>
+        <Target>
+            <AnyOf>
+                <AllOf>
+                    <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">admin</AttributeValue>
+                        <AttributeDesignator AttributeId="urn:oasis:names:tc:xacml:1.0:subject:subject-role"
+                                           DataType="http://www.w3.org/2001/XMLSchema#string"
+                                           MustBePresent="true"/>
+                    </Match>
+                </AllOf>
+            </AnyOf>
+        </Target>
+    </Rule>
+
+    <!-- Rule 2: Moderators can read and write -->
+    <Rule RuleId="moderator-read-write" Effect="Permit">
+        <Description>Moderators can read and write files</Description>
+        <Target>
+            <AnyOf>
+                <AllOf>
+                    <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">moderator</AttributeValue>
+                        <AttributeDesignator AttributeId="urn:oasis:names:tc:xacml:1.0:subject:subject-role"
+                                           DataType="http://www.w3.org/2001/XMLSchema#string"
+                                           MustBePresent="true"/>
+                    </Match>
+                    <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-one-member-of">
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">read write</AttributeValue>
+                        <AttributeDesignator AttributeId="urn:oasis:names:tc:xacml:1.0:action:action-id"
+                                           DataType="http://www.w3.org/2001/XMLSchema#string"
+                                           MustBePresent="true"/>
+                    </Match>
+                </AllOf>
+            </AnyOf>
+        </Target>
+    </Rule>
+
+    <!-- Rule 3: Users can only read -->
+    <Rule RuleId="user-read-only" Effect="Permit">
+        <Description>Regular users can only read files</Description>
+        <Target>
+            <AnyOf>
+                <AllOf>
+                    <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">user</AttributeValue>
+                        <AttributeDesignator AttributeId="urn:oasis:names:tc:xacml:1.0:subject:subject-role"
+                                           DataType="http://www.w3.org/2001/XMLSchema#string"
+                                           MustBePresent="true"/>
+                    </Match>
+                    <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">read</AttributeValue>
+                        <AttributeDesignator AttributeId="urn:oasis:names:tc:xacml:1.0:action:action-id"
+                                           DataType="http://www.w3.org/2001/XMLSchema#string"
+                                           MustBePresent="true"/>
+                    </Match>
+                </AllOf>
+            </AnyOf>
+        </Target>
+    </Rule>
+
+    <!-- Default deny rule -->
+    <Rule RuleId="deny-all" Effect="Deny">
+        <Description>Deny all other access requests</Description>
+    </Rule>
+
+</Policy>
