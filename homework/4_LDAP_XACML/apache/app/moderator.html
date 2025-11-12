@@ -60,9 +60,10 @@
     }
 
     async function downloadFile(name, target){
-      const fullPath = currentPath ? currentPath + '/' + name : name;
-      const url = '/api/files/' + encodeURIComponent(fullPath) +
-                  (target ? ('?user=' + encodeURIComponent(target)) : '');
+      const params = new URLSearchParams();
+      if (target) params.append('user', target);
+      if (currentPath) params.append('path', currentPath);
+      const url = '/api/files/' + encodeURIComponent(name) + (params.toString() ? '?' + params.toString() : '');
       const res = await fetch(url, { headers: headers() });
       await downloadBlobResponse(res, name);
     }

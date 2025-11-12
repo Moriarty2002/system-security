@@ -71,6 +71,7 @@ def create_app(config_object=None) -> Flask:
     # Initialize storage
     with app.app_context():
         ensure_storage_directory(app.config['STORAGE_DIR'])
+        db.create_all()  # Create database tables
         app.logger.info("Application initialized successfully")
 
     return app
