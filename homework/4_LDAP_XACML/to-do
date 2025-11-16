@@ -1,0 +1,1 @@
+Remove port expose in the docker compose file for postgres db, to not let user devices access it
