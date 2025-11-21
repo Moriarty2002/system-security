@@ -17,6 +17,8 @@ from .utils import ensure_storage_directory
 from .blueprints.auth import auth_bp
 from .blueprints.files import files_bp
 from .blueprints.admin import admin_bp
+from .models import User
+from .auth import hash_password
 
 
 def setup_logging(app: Flask) -> None:
@@ -72,6 +74,30 @@ def create_app(config_object=None) -> Flask:
     with app.app_context():
         ensure_storage_directory(app.config['STORAGE_DIR'])
         db.create_all()  # Create database tables
+        # Ensure default users exist or update their passwords from env vars.
+        # This makes the container-friendly `ADMIN_PASSWORD`, `ALICE_PASSWORD`,
+        # and `MOD_PASSWORD` environment variables deterministic for local testing.
+        try:
+            defaults = [
+                ("admin", "admin", 0, os.environ.get('ADMIN_PASSWORD')),
+                ("alice", "user", 104857600, os.environ.get('ALICE_PASSWORD')),
+                ("moderator", "moderator", 0, os.environ.get('MOD_PASSWORD')),
+            ]
+            for username, role, quota, pw in defaults:
+                if pw is None:
+                    # If no env pw provided, skip overriding existing entries.
+                    continue
+                user = User.query.get(username)
+                if user:
+                    user.password_hash = hash_password(pw)
+                    user.role = role
+                    user.quota = quota
+                else:
+                    user = User(username=username, role=role, quota=quota, password_hash=hash_password(pw))
+                    db.session.add(user)
+            db.session.commit()
+        except Exception:
+            app.logger.exception('failed to ensure default users')
         app.logger.info("Application initialized successfully")
 
     return app

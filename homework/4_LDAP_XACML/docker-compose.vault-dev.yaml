@@ -1,0 +1,47 @@
+services:
+  # Dev-mode Vault for local testing only (INSECURE)
+  vault:
+    image: hashicorp/vault:1.14.0
+    container_name: vault_dev
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: root
+    command: server -dev -dev-listen-address=0.0.0.0:8200 -dev-root-token-id=root
+    ports:
+      - "8200:8200"
+    volumes:
+      - vault_files:/vault
+    networks:
+      - app_net
+
+  # One-shot initializer that seeds KV secrets, policy, and an AppRole
+  vault-init:
+    image: hashicorp/vault:1.14.0
+    container_name: vault_init_dev
+    depends_on:
+      - vault
+    environment:
+      VAULT_ADDR: "http://vault:8200"
+      VAULT_TOKEN: root
+    entrypoint: ["/bin/sh", "-c"]
+    # Run the init script shipped in the repo. Mount the script as a bind
+    # (read-only) so the container can execute it without requiring the
+    # entire host folder to be mounted as /vault.
+    command: "sh /vault/init.sh"
+    volumes:
+      - type: bind
+        source: ./be_flask/vault/init.sh
+        target: /vault/init.sh
+        read_only: true
+      - vault_files:/vault
+    networks:
+      - app_net
+    restart: "no"
+
+networks:
+  app_net:
+    driver: bridge
+
+volumes:
+  vault_files:

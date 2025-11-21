@@ -1,4 +1,51 @@
 import os
+from typing import Optional
+
+# Optional Vault support. If `VAULT_ADDR` is set (and `hvac` is installed),
+# the app will attempt to authenticate (via token or AppRole) and load
+# secrets from the KV v2 path `secret/flask`. Loaded secrets are exported
+# into `os.environ` only when the corresponding env var is not already set.
+try:
+    import hvac
+except Exception:
+    hvac = None
+
+
+def _load_secrets_from_vault() -> None:
+    vault_addr = os.environ.get('VAULT_ADDR')
+    if not vault_addr or hvac is None:
+        return
+
+    token = os.environ.get('VAULT_TOKEN')
+    client = hvac.Client(url=vault_addr, token=token)
+
+    # If token auth failed, try AppRole if credentials are present
+    if not client.is_authenticated():
+        role_id = os.environ.get('VAULT_ROLE_ID')
+        secret_id = os.environ.get('VAULT_SECRET_ID')
+        if role_id and secret_id:
+            try:
+                client.auth.approle.login(role_id=role_id, secret_id=secret_id)
+            except Exception:
+                return
+
+    if not client.is_authenticated():
+        return
+
+    try:
+        # Read KV V2 secret at `secret/flask` and flatten into env
+        secret = client.secrets.kv.v2.read_secret_version(path='flask')
+        data = secret.get('data', {}).get('data', {}) or {}
+        for k, v in data.items():
+            # do not override existing environment variables
+            if os.environ.get(k) is None and v is not None:
+                os.environ[k] = str(v)
+    except Exception:
+        # Ignore vault errors and fall back to environment variables
+        return
+
+
+_load_secrets_from_vault()
 
 
 class Config:

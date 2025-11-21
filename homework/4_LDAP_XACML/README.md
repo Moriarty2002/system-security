@@ -45,3 +45,8 @@ Resetting the database
 Notes
 - If you prefer a named docker volume instead of a host bind, change `docker-compose.yaml`'s `db` service to use a named volume (e.g. `pgdata:/var/lib/postgresql/data`).
 - Ensure the Docker host user has permission to write to `./postgres_data`.
+
+Vault (optional)
+- A development Vault service is available in `docker-compose.yaml` under the service `vault`. This starts Vault in dev mode (insecure, for local testing only) and exposes port `8200`.
+- A one-shot service `vault-init` is included to populate `secret/flask` with a sample `SECRET_KEY` and `DATABASE_URL` for local testing. In production, initialize and manage Vault outside of this compose setup.
+- To use Vault with the Flask backend, set `VAULT_ADDR` (e.g. `http://vault:8200`) and either `VAULT_TOKEN` or `VAULT_ROLE_ID`/`VAULT_SECRET_ID`. The backend will load secrets from `secret/flask` and fall back to environment variables when not available.

@@ -56,13 +56,13 @@ services:
       POSTGRES_HOST: db
       # Use the Postgres service via a DATABASE_URL so the app doesn't fall back to sqlite
       DATABASE_URL: "postgresql://admin:password123@db:5432/postgres_db"
-      # Seed default user passwords used by the Flask app on first-run
-      ADMIN_PASSWORD: admin
-      ALICE_PASSWORD: alice
-      MOD_PASSWORD: moderator
       # Set a stable secret key for JWT signing (override in production)
       #SECRET_KEY: dev-secret-key
       PYTHONUNBUFFERED: 1
+      # Optional: point the backend to Vault when running via docker-compose
+      VAULT_ADDR: "http://vault:8200"
+      # For dev/demo only: use the dev root token (set by the vault service above)
+      VAULT_TOKEN: root
     restart: unless-stopped # Added for robustness
     networks:
       - app_net # Connect to the custom network

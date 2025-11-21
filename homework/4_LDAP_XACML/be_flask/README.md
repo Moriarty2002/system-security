@@ -64,6 +64,19 @@ Set environment variables:
 - `DATABASE_URL`: Database connection string
 - `FLASK_ENV`: Environment (development/production)
 
+### Optional: HashiCorp Vault integration
+
+- To improve secret handling, the app can load secrets from HashiCorp Vault (KV v2) at the path `secret/flask`.
+- The app will attempt to load secrets when `VAULT_ADDR` is set and the `hvac` Python package is installed.
+- Authentication methods supported:
+	- Token auth: set `VAULT_TOKEN`
+	- AppRole: set `VAULT_ROLE_ID` and `VAULT_SECRET_ID`
+- Secrets written to Vault should be keys such as `SECRET_KEY` and `DATABASE_URL` (other keys are supported).
+
+Run Vault locally via `docker-compose` (development/dev mode): the top-level `docker-compose.yaml` contains an optional `vault` service and a `vault-init` one-shot initializer that will populate `secret/flask` for demo purposes.
+
+Alternatively, run Vault separately (recommended for production) and ensure the Flask container has connectivity and appropriate credentials.
+
 ## Running the Application
 
 ### Local Development
