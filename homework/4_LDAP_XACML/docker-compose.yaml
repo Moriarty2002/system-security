@@ -49,23 +49,22 @@ services:
     build: ./be_flask
     container_name: flask_be
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password123
-      POSTGRES_DB: postgres_db
-      # Add this variable so the app knows where to find the DB
-      POSTGRES_HOST: db
-      # Use the Postgres service via a DATABASE_URL so the app doesn't fall back to sqlite
-      DATABASE_URL: "postgresql://admin:password123@db:5432/postgres_db"
-      # Seed default user passwords used by the Flask app on first-run
-      ADMIN_PASSWORD: admin
-      ALICE_PASSWORD: alice
-      MOD_PASSWORD: moderator
-      # Set a stable secret key for JWT signing (override in production)
-      #SECRET_KEY: dev-secret-key
+      # Vault Configuration
+      VAULT_ADDR: ${VAULT_ADDR:-http://vault_server:8200}
+      VAULT_ROLE_ID: ${VAULT_ROLE_ID}
+      VAULT_SECRET_ID: ${VAULT_SECRET_ID}
+      
+      # Application Configuration
+      FLASK_ENV: ${FLASK_ENV:-production}
       PYTHONUNBUFFERED: 1
+      
+      # Fallback for local development (will be overridden by Vault in production)
+      # These are only used if Vault is unavailable
+      POSTGRES_HOST: db
     restart: unless-stopped # Added for robustness
     networks:
       - app_net # Connect to the custom network
+      - vault_net # Connect to Vault network
     # Persist uploaded files on the host so uploads survive container recreation
     volumes:
       - type: bind
@@ -85,9 +84,13 @@ services:
     image: postgres:14-alpine
     container_name: postgres_db
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password123
-      POSTGRES_DB: postgres_db
+      # Database credentials will be managed by Vault
+      # For initial setup, these are read from .env which gets values from Vault init
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_DB: ${POSTGRES_DB:-postgres_db}
+    secrets:
+      - db_password
     volumes:
       # Use a named volume instead of bind mount
       - pg_data:/var/lib/postgresql/data
@@ -103,7 +106,7 @@ services:
     networks:
       - app_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d postgres_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-postgres_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -114,3 +117,10 @@ volumes:
 networks:
   app_net:
     driver: bridge
+  vault_net:
+    external: true
+    name: 4_ldap_xacml_vault_net
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt

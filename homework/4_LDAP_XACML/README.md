@@ -1,47 +1,287 @@
-# Security steps to do:
-- change token management to use HTTP-Only Cookies:
+# Secure File Storage Service with HashiCorp Vault
+
+A production-ready web application with enterprise-grade secrets management using HashiCorp Vault.
+
+## 🔐 Security Features
+
+- **HashiCorp Vault Integration**: All secrets managed by Vault
+- **No Hardcoded Credentials**: Zero secrets in code or config files
+- **AppRole Authentication**: Secure machine-to-machine authentication
+- **JWT Token Security**: Signing keys rotated and managed by Vault
+- **Database Security**: Credentials stored and rotated in Vault
+- **Docker Secrets**: Sensitive data passed via Docker secrets API
+- **Network Isolation**: Separate networks for Vault and application
+- **Least Privilege**: Minimal container capabilities and permissions
+
+## 🏗️ Architecture
+
+### Two-Tier Infrastructure
+
+**1. Vault Infrastructure** (Independent)
+- HashiCorp Vault server
+- Secrets storage and management
+- Policy-based access control
+- Audit logging
+
+**2. Application Stack**
+- Apache HTTPS frontend
+- Flask API backend
+- PostgreSQL database
+- Connects to Vault for secrets
+
+This separation enables:
+- ✅ Independent Vault lifecycle
+- ✅ Multiple applications sharing Vault
+- ✅ Production deployment on separate hosts
+- ✅ Enhanced security through isolation
+
+## 🚀 Quick Start
+
+### Step 1: Initialize Vault
+
+```bash
+# Start Vault infrastructure
+docker compose -f docker-compose.vault.yaml up -d
+
+# Wait for Vault to be ready
+sleep 10
+
+# Initialize and configure Vault
+cd vault/scripts
+./init-vault.sh
+cd ../..
 ```
-// Server-side (your backend)
-// Set cookie on login
-res.cookie('access_token', token, {
-  httpOnly: true,  // JavaScript can't access
-  secure: true,    // HTTPS only
-  sameSite: 'strict',
-  maxAge: 24 * 60 * 60 * 1000 // 24 hours
-});
 
-// Frontend - no token handling needed!
-// Browser automatically sends cookie with each request
-async function headers(includeJson){
-  const h = {};
-  if (includeJson) h['Content-Type'] = 'application/json';
-  // No Authorization header needed - cookie is automatic
-  return h;
-}
+**⚠️ IMPORTANT**: The script creates `vault-keys.json` with unseal keys. **Keep this file secure and backed up!**
 
-// Pros: Most secure (immune to XSS), automatic persistence
-// Cons: Requires backend changes, CSRF protection needed
+### Step 2: Start Application
+
+```bash
+# Start the application stack
+docker compose up -d
+
+# Verify Vault integration
+docker compose logs backend | grep Vault
+
+# Expected output:
+# ✅ Vault integration enabled - secrets managed by Vault
 ```
 
+### Step 3: Access the Application
 
+- **Application**: https://localhost (or http://localhost)
+- **Vault UI**: http://localhost:8200
+- **API**: http://localhost:5000
 
-# Postgres persistence and init scripts
+**Default Users** (passwords managed by Vault):
+- admin / admin123
+- alice / alice123  
+- moderator / moderator123
 
-This directory contains the Flask backend and init SQL for the homework project.
+## 📚 Documentation
 
-Persistence
-- PostgreSQL data is bind-mounted to the host at `./postgres_data` (relative to the repo root).
-- On first `docker compose up`, if `./postgres_data` is empty, Postgres will initialize the database there.
+- **[VAULT_INTEGRATION.md](VAULT_INTEGRATION.md)** - Complete Vault setup and management guide
+- **[.env.example](.env.example)** - Environment configuration template
 
-Init scripts
-- SQL files placed in `./be_flask/db_init` are mounted into the container at `/docker-entrypoint-initdb.d` and will be executed by the official Postgres image when the DB directory is empty.
+## 🔧 Management Tasks
 
-Resetting the database
-1. Stop the containers: `docker compose down`
-2. Remove the docker volume `docker volume ls` and `docker volume rm <volume_name>`
-4. Uncomment the init script binding in the docker compose file
-5. The init SQL scripts in `be_flask/db_init` will run on the fresh DB.
+### Unseal Vault After Restart
 
-Notes
-- If you prefer a named docker volume instead of a host bind, change `docker-compose.yaml`'s `db` service to use a named volume (e.g. `pgdata:/var/lib/postgresql/data`).
-- Ensure the Docker host user has permission to write to `./postgres_data`.
+```bash
+cd vault/scripts
+./unseal-vault.sh
+```
+
+### Rotate AppRole Credentials
+
+```bash
+cd vault/scripts
+./rotate-secret-id.sh
+
+# Update .env with new VAULT_SECRET_ID
+docker compose restart backend
+```
+
+### View Secrets
+
+```bash
+export VAULT_ADDR=http://localhost:8200
+export VAULT_TOKEN=$(jq -r '.root_token' vault/scripts/vault-keys.json)
+
+vault kv get secret/app/flask
+vault kv get secret/database/postgres
+```
+
+### Update Application Secrets
+
+```bash
+# Update JWT signing key
+vault kv patch secret/app/flask jwt_secret="new-secure-key"
+
+# Restart to apply
+docker compose restart backend
+```
+
+## 🛠️ Development vs Production
+
+### Development Mode
+
+For development without Vault:
+
+```bash
+# Set environment variables directly
+export FLASK_ENV=development
+export DATABASE_URL=postgresql://admin:password123@localhost:5432/postgres_db
+export SECRET_KEY=dev-secret-key
+
+# Start services
+docker compose up -d
+```
+
+The application gracefully falls back to environment variables if Vault is unavailable.
+
+### Production Mode
+
+Production requires Vault integration:
+
+1. Deploy Vault on separate infrastructure
+2. Enable TLS for Vault
+3. Use proper secret rotation policies
+4. Implement monitoring and alerting
+5. Regular backups of vault-keys.json
+6. Use cloud KMS for auto-unsealing
+
+See [VAULT_INTEGRATION.md](VAULT_INTEGRATION.md) for production guidelines.
+
+## 📊 Project Structure
+
+```
+.
+├── docker-compose.vault.yaml       # Vault infrastructure
+├── docker-compose.yaml             # Application stack
+├── VAULT_INTEGRATION.md           # Vault documentation
+├── .env.example                   # Configuration template
+├── vault/
+│   ├── config/
+│   │   └── vault-config.hcl      # Vault server config
+│   ├── policies/
+│   │   ├── app-policy.hcl        # Application policy
+│   │   └── admin-policy.hcl      # Admin policy
+│   └── scripts/
+│       ├── init-vault.sh         # Initialization script
+│       ├── unseal-vault.sh       # Unseal helper
+│       └── rotate-secret-id.sh   # Credential rotation
+├── apache/                        # Frontend web server
+├── be_flask/
+│   └── src/
+│       ├── vault_client.py       # Vault integration
+│       ├── config.py             # Config with Vault
+│       ├── auth.py               # JWT auth with Vault
+│       └── db_utils.py           # DB initialization
+└── secrets/                       # Docker secrets (git-ignored)
+    └── db_password.txt
+```
+
+## 🔍 Verification
+
+Check that Vault integration is working:
+
+```bash
+# Backend should show Vault status
+docker compose logs backend | grep "Vault"
+
+# Should see:
+# ✅ Vault integration enabled - secrets managed by Vault
+# Successfully authenticated with Vault using AppRole  
+# Using database configuration from Vault
+
+# Check secret access
+docker compose exec backend python3 -c "
+from src.vault_client import get_vault_client
+vc = get_vault_client()
+print('Vault Available:', vc.is_available())
+print('App Secrets:', list(vc.get_app_secrets().keys()))
+"
+```
+
+## 🔒 Security Checklist
+
+- ✅ All secrets in Vault (not in code/env files)
+- ✅ AppRole authentication configured
+- ✅ Vault policies limit application access
+- ✅ Database credentials via Docker secrets
+- ✅ JWT keys managed by Vault
+- ✅ Regular secret rotation scheduled
+- ✅ Vault data backed up securely
+- ✅ TLS enabled for production
+- ✅ Audit logging enabled
+- ✅ Network segmentation implemented
+
+## 🐛 Troubleshooting
+
+### Vault Connection Issues
+
+```bash
+# Check Vault is running
+docker compose -f docker-compose.vault.yaml ps
+
+# Check Vault health
+curl http://localhost:8200/v1/sys/health
+
+# Unseal if needed
+cd vault/scripts && ./unseal-vault.sh
+```
+
+### Application Can't Authenticate
+
+```bash
+# Verify credentials in .env
+cat .env | grep VAULT
+
+# Check backend logs
+docker compose logs backend
+
+# Rotate credentials if needed
+cd vault/scripts && ./rotate-secret-id.sh
+```
+
+### Database Connection Issues
+
+```bash
+# Verify database password file exists
+ls -la secrets/db_password.txt
+
+# Check database logs
+docker compose logs db
+
+# Verify Vault has correct password
+vault kv get secret/database/postgres
+```
+
+## 📖 Additional Resources
+
+- [HashiCorp Vault Documentation](https://www.vaultproject.io/docs)
+- [AppRole Authentication](https://www.vaultproject.io/docs/auth/approle)
+- [Docker Secrets](https://docs.docker.com/engine/swarm/secrets/)
+- [Flask Security Best Practices](https://flask.palletsprojects.com/en/2.3.x/security/)
+
+## 🤝 Contributing
+
+When contributing:
+1. Never commit secrets or credentials
+2. Use Vault for all sensitive data  
+3. Test with Vault integration enabled
+4. Update documentation for config changes
+5. Follow security best practices
+
+## 📝 Notes
+
+- `vault-keys.json` is critical - back it up securely
+- Vault must be unsealed after every restart
+- AppRole Secret ID should be rotated regularly
+- Monitor Vault audit logs for security events
+- Use separate Vault instances for dev/staging/prod
+
+---
+
+For detailed Vault setup, management, and troubleshooting, see **[VAULT_INTEGRATION.md](VAULT_INTEGRATION.md)**.

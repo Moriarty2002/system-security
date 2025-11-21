@@ -1,12 +1,29 @@
 import datetime
-import os
+import logging
 from typing import Tuple
 
 import jwt
-from flask import request, abort
+from flask import request, abort, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from .models import db, User
+
+logger = logging.getLogger(__name__)
+
+
+def get_jwt_secret() -> str:
+    """Get JWT secret from app config (which fetches from Vault).
+    
+    Returns:
+        JWT signing secret
+    """
+    try:
+        return current_app.config['SECRET_KEY']
+    except (RuntimeError, KeyError):
+        # Fallback if not in app context
+        logger.warning("Could not access Flask app context for SECRET_KEY")
+        import os
+        return os.environ.get('SECRET_KEY', 'dev-secret-key')
 
 
 def authenticate_user() -> Tuple[str, User]:
@@ -29,15 +46,18 @@ def authenticate_user() -> Tuple[str, User]:
     username = None
     if token:
         try:
+            secret = get_jwt_secret()
             payload = jwt.decode(
                 token,
-                os.environ.get('SECRET_KEY', 'dev-secret-key'),
+                secret,
                 algorithms=['HS256']
             )
             username = payload.get('sub')
         except jwt.ExpiredSignatureError:
+            logger.warning("Attempt to use expired JWT token")
             abort(401, description='token expired')
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Invalid JWT token: {e}")
             abort(401, description='invalid token')
     else:
         # fallback - NOT secure, only for local/demo convenience
@@ -48,6 +68,7 @@ def authenticate_user() -> Tuple[str, User]:
 
     user = User.query.get(username)
     if not user:
+        logger.warning(f"Authentication attempted for unknown user: {username}")
         abort(403, description='Unknown user')
 
     return username, user
@@ -63,7 +84,7 @@ def create_token(username: str, expires_in: int = 3600) -> str:
     Returns:
         JWT token string
     """
-    secret = os.environ.get('SECRET_KEY', 'dev-secret-key')
+    secret = get_jwt_secret()
     exp = datetime.datetime.utcnow() + datetime.timedelta(seconds=expires_in)
 
     # Get user role from database
@@ -75,7 +96,10 @@ def create_token(username: str, expires_in: int = 3600) -> str:
         'role': role,
         'exp': exp
     }
-    return jwt.encode(payload, secret, algorithm='HS256')
+    
+    token = jwt.encode(payload, secret, algorithm='HS256')
+    logger.info(f"Created JWT token for user: {username}")
+    return token
 
 
 def require_admin(user: User) -> None:
