@@ -141,6 +141,21 @@ def list_files():
     })
 
 
+@files_bp.route('/users', methods=['GET'])
+def list_users_for_moderator():
+    """List all usernames (moderator only)."""
+    username, user = authenticate_user()
+
+    # Only moderators can access this endpoint
+    if getattr(user, 'role', '') != 'moderator':
+        abort(403, description='only moderators can list users')
+
+    users = User.query.order_by(User.username).all()
+    usernames = [u.username for u in users]
+
+    return jsonify({'users': usernames})
+
+
 @files_bp.route('/files/<filename>', methods=['GET'])
 def download_file(filename):
     """Download a file."""

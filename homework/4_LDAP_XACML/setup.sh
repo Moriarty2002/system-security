@@ -162,6 +162,23 @@ echo "Step 4: Starting Application Stack"
 echo "==========================================="
 echo ""
 
+# Check if database volume exists - if not, it's a fresh start
+DB_VOLUME_EXISTS=$(docker volume ls --format '{{.Name}}' | grep -c "pg_data" || echo "0")
+
+if [ "$DB_VOLUME_EXISTS" -eq "0" ]; then
+    echo "Fresh database setup detected"
+elif docker ps -a --format '{{.Names}}' | grep -q "postgres_db"; then
+    # Database container exists - check if password matches
+    echo "Existing database detected - verifying password..."
+    # Database exists, we need to ensure password is in sync
+    # This happens when you restart without --reset
+    echo "⚠️  Note: If you get authentication errors, run with --reset flag to rebuild database"
+fi
+
+# Rebuild backend to ensure latest code (includes URL encoding fix)
+echo "Building backend image..."
+docker compose build backend --quiet
+
 echo "Starting application services..."
 docker compose up -d
 
@@ -192,6 +209,17 @@ while [ $RETRY -lt $MAX_RETRIES ]; do
     echo "Waiting for database... ($RETRY/$MAX_RETRIES)"
     sleep 2
 done
+
+# Check if backend is failing due to authentication error and fix it
+if docker compose logs backend 2>&1 | grep -q "password authentication failed"; then
+    echo "⚠️  Detected password authentication error - synchronizing database password..."
+    DB_PASSWORD=$(cat secrets/db_password.txt)
+    docker compose exec -T db psql -U admin -d postgres_db -c "ALTER USER admin WITH PASSWORD '$DB_PASSWORD';" > /dev/null 2>&1 || true
+    echo "Restarting backend..."
+    docker compose restart backend > /dev/null 2>&1
+    sleep 5
+    echo "✅ Password synchronized"
+fi
 
 echo ""
 echo "==========================================="

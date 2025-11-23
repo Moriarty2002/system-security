@@ -13,6 +13,7 @@ Security Features:
 """
 
 import os
+import re
 import logging
 from flask import Flask
 from flask_cors import CORS
@@ -20,7 +21,6 @@ from flask_cors import CORS
 from .config import get_config
 from .models import db
 from .utils import ensure_storage_directory
-from .db_utils import initialize_default_users, check_database_health
 from .blueprints.auth import auth_bp
 from .blueprints.files import files_bp
 from .blueprints.admin import admin_bp
@@ -69,12 +69,20 @@ def create_app(config_object=None) -> Flask:
     # Setup logging
     setup_logging(app)
     
-    # Log Vault status
+    # Log Vault status and database URI
     if hasattr(config, 'vault_client'):
         if config.vault_client.is_available():
             app.logger.info("✅ Vault integration enabled - secrets managed by Vault")
         else:
             app.logger.warning("⚠️  Vault unavailable - using fallback configuration")
+    
+    # Log database connection (without exposing password)
+    db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    if db_uri:
+        # Mask password in log
+        import re
+        masked_uri = re.sub(r'://([^:]+):([^@]+)@', r'://\1:****@', db_uri)
+        app.logger.info(f"Database URI: {masked_uri}")
 
     # Initialize extensions
     CORS(app)
@@ -89,22 +97,18 @@ def create_app(config_object=None) -> Flask:
     with app.app_context():
         ensure_storage_directory(app.config['STORAGE_DIR'])
         
-        # Create database tables
-        db.create_all()
-        app.logger.info("Database tables created/verified")
-        
-        # Check database health
-        if check_database_health():
-            app.logger.info("Database connection healthy")
-        else:
-            app.logger.error("Database connection issue detected")
-        
-        # Initialize default users with Vault passwords
         try:
-            initialize_default_users(config)
+            # Create table metadata (does NOT create tables if they exist)
+            # This ensures SQLAlchemy knows about existing tables created by init script
+            # In production: tables are created by DB migrations/init scripts, not Flask
+            db.create_all()
+            app.logger.info("Database schema synchronized")
         except Exception as e:
-            app.logger.error(f"Failed to initialize default users: {e}")
-            # Don't fail app startup, but log the error
+            app.logger.error(f"Failed to synchronize database schema: {e}")
+            db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', 'not set')
+            masked_uri = re.sub(r'://([^:]+):([^@]+)@', r'://\1:****@', db_uri)
+            app.logger.error(f"Database URI (masked): {masked_uri}")
+            raise
         
         app.logger.info("Application initialized successfully")
 

@@ -48,6 +48,8 @@ services:
   backend:
     build: ./be_flask
     container_name: flask_be
+    env_file:
+      - .env
     environment:
       # Vault Configuration
       VAULT_ADDR: ${VAULT_ADDR:-http://vault_server:8200}
@@ -95,11 +97,11 @@ services:
       # Use a named volume instead of bind mount
       - pg_data:/var/lib/postgresql/data
       
-      # INIT SCRIPT
-      # - type: bind 
-      #   source: ./be_flask/db_init
-      #   target: /docker-entrypoint-initdb.d
-      #   read_only: true
+      # INIT SCRIPT - Creates users table and seeds default users
+      - type: bind 
+        source: ./be_flask/db_init
+        target: /docker-entrypoint-initdb.d
+        read_only: true
     ports:
       - "5432:5432"
     restart: unless-stopped

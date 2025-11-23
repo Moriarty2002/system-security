@@ -315,6 +315,11 @@
       toggleView(currentView === 'files' ? 'bin' : 'files');
     });
 
+    document.getElementById('logout').addEventListener('click', () => {
+      removeToken();
+      location.href = 'index.html';
+    });
+
     load();
   </script>
 </body>

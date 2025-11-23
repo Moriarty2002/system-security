@@ -194,6 +194,8 @@ class VaultClient:
         Returns:
             Dictionary containing database connection parameters
         """
+        from urllib.parse import quote_plus
+        
         db_secrets = self._read_secret('database/postgres')
         
         if db_secrets:
@@ -203,13 +205,17 @@ class VaultClient:
             host = db_secrets.get('host', 'db')
             port = db_secrets.get('port', '5432')
             
+            # URL-encode credentials to handle special characters
+            username_encoded = quote_plus(username) if username else ''
+            password_encoded = quote_plus(password) if password else ''
+            
             return {
                 'username': username,
                 'password': password,
                 'database': database,
                 'host': host,
                 'port': port,
-                'url': f"postgresql://{username}:{password}@{host}:{port}/{database}"
+                'url': f"postgresql://{username_encoded}:{password_encoded}@{host}:{port}/{database}"
             }
         
         # Fallback to environment variables
