@@ -1,0 +1,12 @@
+# Vault sensitive files - NEVER commit these
+scripts/vault-keys.json
+scripts/approle-credentials.txt
+
+# Logs
+logs/*.log
+logs/*.json
+
+# Temporary files
+*.tmp
+*.bak
+.DS_Store

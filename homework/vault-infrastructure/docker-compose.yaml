@@ -1,0 +1,52 @@
+# Shared HashiCorp Vault Infrastructure
+# 
+# This Vault server can be used by multiple applications across different homework projects.
+# It provides centralized secrets management following production best practices.
+#
+# Usage:
+#   cd homework/vault-infrastructure
+#   docker compose up -d
+#
+# After initial setup, initialize and unseal Vault using:
+#   cd scripts
+#   ./init-vault.sh
+
+services:
+  vault:
+    image: hashicorp/vault:1.15
+    container_name: shared_vault_server
+    restart: unless-stopped
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_ADDR: 'http://0.0.0.0:8200'
+      VAULT_API_ADDR: 'http://0.0.0.0:8200'
+      VAULT_ADDRESS: 'http://0.0.0.0:8200'
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault_data:/vault/file
+      - ./config:/vault/config:ro
+      - ./logs:/vault/logs
+      - ./policies:/vault/policies:ro
+    command: server
+    networks:
+      - shared_vault_net
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  vault_data:
+    driver: local
+
+networks:
+  shared_vault_net:
+    driver: bridge
+    name: shared_vault_net
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16

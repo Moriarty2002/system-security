@@ -72,16 +72,16 @@ fi
 
 # Step 1: Start Vault
 echo "==========================================="
-echo "Step 1: Starting Vault Infrastructure"
+echo "Step 1: Starting Shared Vault Infrastructure"
 echo "==========================================="
 echo ""
 
 # Check if Vault is already running
-if docker ps | grep -q vault_server; then
-    echo "ℹ️  Vault server is already running"
+if docker ps | grep -q shared_vault_server; then
+    echo "ℹ️  Shared Vault server is already running"
     
     # Check if it's initialized
-    if [ -f "$SCRIPT_DIR/vault/scripts/vault-keys.json" ]; then
+    if [ -f "$SCRIPT_DIR/../vault-infrastructure/scripts/vault-keys.json" ]; then
         echo "ℹ️  Vault is already initialized"
         
         # Try to unseal
@@ -89,20 +89,22 @@ if docker ps | grep -q vault_server; then
         export VAULT_ADDR=http://localhost:8200
         if vault status 2>&1 | grep -q "Sealed.*true"; then
             echo "Vault is sealed, unsealing..."
-            cd vault/scripts
+            cd ../vault-infrastructure/scripts
             ./unseal-vault.sh
-            cd ../..
+            cd ../../4_LDAP_XACML
         else
             echo "✅ Vault is already unsealed"
         fi
     else
         echo "❌ Vault is running but not initialized"
-        echo "Run the initialization manually: cd vault/scripts && ./init-vault.sh"
+        echo "Run: cd ../vault-infrastructure/scripts && ./init-vault.sh"
         exit 1
     fi
 else
-    echo "Starting Vault server..."
-    docker compose -f docker-compose.vault.yaml up -d
+    echo "Starting shared Vault server..."
+    cd ../vault-infrastructure
+    docker compose up -d
+    cd ../4_LDAP_XACML
     
     echo "Waiting for Vault to be ready..."
     sleep 10
@@ -127,14 +129,24 @@ else
     
     echo ""
     echo "==========================================="
-    echo "Step 2: Initializing Vault"
+    echo "Step 2: Initializing Shared Vault"
     echo "==========================================="
     echo ""
     
-    cd vault/scripts
+    cd ../vault-infrastructure/scripts
     ./init-vault.sh
-    cd ../..
+    cd ../../4_LDAP_XACML
 fi
+
+echo ""
+echo "==========================================="
+echo "Step 2.5: Configuring Application in Vault"
+echo "==========================================="
+echo ""
+
+cd vault/scripts
+./setup-vault-app.sh
+cd ../..
 
 echo ""
 echo "==========================================="
@@ -255,14 +267,17 @@ echo "   - alice / alice123"
 echo "   - moderator / moderator123"
 echo ""
 echo "🔑 Vault Access:"
-VAULT_TOKEN=$(jq -r '.root_token' vault/scripts/vault-keys.json 2>/dev/null || echo "N/A")
+VAULT_TOKEN=$(jq -r '.root_token' ../vault-infrastructure/scripts/vault-keys.json 2>/dev/null || echo "N/A")
 echo "   - Root Token: $VAULT_TOKEN"
 echo "   - Login at: http://localhost:8200"
+echo "   - Shared Vault: Multiple apps can use this Vault instance"
 echo ""
 echo "📝 Useful Commands:"
 echo "   - View logs:        docker compose logs -f"
 echo "   - Stop services:    docker compose down"
+echo "   - Stop Vault:       cd ../vault-infrastructure && docker compose down"
 echo "   - Restart backend:  docker compose restart backend"
+echo "   - Rotate secrets:   cd vault/scripts && ./rotate-secret-id.sh"
 echo "   - Unseal Vault:     cd vault/scripts && ./unseal-vault.sh"
 echo ""
 echo "📖 Documentation:"

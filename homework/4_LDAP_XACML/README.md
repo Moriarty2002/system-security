@@ -17,46 +17,65 @@ A production-ready web application with enterprise-grade secrets management usin
 
 ### Two-Tier Infrastructure
 
-**1. Vault Infrastructure** (Independent)
+**1. Shared Vault Infrastructure** (Independent, at homework/vault-infrastructure/)
 - HashiCorp Vault server
 - Secrets storage and management
 - Policy-based access control
 - Audit logging
+- **Shared by multiple applications**
 
-**2. Application Stack**
+**2. Application Stack** (This project: 4_LDAP_XACML)
 - Apache HTTPS frontend
 - Flask API backend
 - PostgreSQL database
-- Connects to Vault for secrets
+- Connects to shared Vault for secrets
 
 This separation enables:
 - ✅ Independent Vault lifecycle
-- ✅ Multiple applications sharing Vault
+- ✅ Multiple applications sharing the same Vault instance
 - ✅ Production deployment on separate hosts
 - ✅ Enhanced security through isolation
+- ✅ Real-world architecture simulation
 
 ## 🚀 Quick Start
 
-### Step 1: Initialize Vault
+### Step 1: Initialize Shared Vault (First Time Only)
 
 ```bash
+# Navigate to shared Vault infrastructure
+cd ../vault-infrastructure
+
 # Start Vault infrastructure
-docker compose -f docker-compose.vault.yaml up -d
+docker compose up -d
 
 # Wait for Vault to be ready
 sleep 10
 
 # Initialize and configure Vault
-cd vault/scripts
+cd scripts
 ./init-vault.sh
+./init-vault.sh
+cd ../../4_LDAP_XACML
+```
+
+**⚠️ IMPORTANT**: The script creates `vault-keys.json` with unseal keys in `../vault-infrastructure/scripts/`. **Keep this file secure and backed up!**
+
+### Step 2: Configure This Application in Vault
+
+```bash
+# Configure application-specific secrets and policies
+cd vault/scripts
+./setup-vault-app.sh
 cd ../..
 ```
 
-**⚠️ IMPORTANT**: The script creates `vault-keys.json` with unseal keys. **Keep this file secure and backed up!**
+This script:
+- Creates namespaced policies for this application
+- Generates AppRole credentials
+- Stores secrets at `secret/4_ldap_xacml/`
+- Creates database initialization script with hashed passwords
 
-The init script also generates a database initialization SQL file with hashed passwords from Vault.
-
-### Step 2: Reset Database (First Time Setup)
+### Step 3: Reset Database (First Time Setup)
 
 Since the database init script was just generated, you need to reset the database:
 
@@ -68,10 +87,10 @@ docker volume rm 4_ldap_xacml_pg_data 2>/dev/null || true
 # This ensures the init script runs when database starts
 ```
 
-### Step 3: Start Application
+### Step 4: Start Application
 
 ```bash
-# Start the application stack
+# Start the application stack (from 4_LDAP_XACML directory)
 docker compose up -d
 
 # Verify Vault integration
@@ -81,7 +100,7 @@ docker compose logs backend | grep Vault
 # ✅ Vault integration enabled - secrets managed by Vault
 ```
 
-### Step 3: Access the Application
+### Step 5: Access the Application
 
 - **Application**: https://localhost (or http://localhost)
 - **Vault UI**: http://localhost:8200
@@ -127,9 +146,12 @@ docker compose up -d
 
 ### Unseal Vault After Restart
 
+Vault seals itself when the container restarts for security:
+
 ```bash
-cd vault/scripts
+cd ../vault-infrastructure/scripts
 ./unseal-vault.sh
+cd ../../4_LDAP_XACML
 ```
 
 ### Rotate AppRole Credentials
@@ -140,6 +162,17 @@ cd vault/scripts
 
 # Update .env with new VAULT_SECRET_ID
 docker compose restart backend
+```
+
+### Stop All Services
+
+```bash
+# Stop application
+docker compose down
+
+# Stop shared Vault (⚠️ affects all applications using it)
+cd ../vault-infrastructure
+docker compose down
 ```
 
 ### View Secrets

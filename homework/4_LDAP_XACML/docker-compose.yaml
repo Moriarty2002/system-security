@@ -51,8 +51,8 @@ services:
     env_file:
       - .env
     environment:
-      # Vault Configuration
-      VAULT_ADDR: ${VAULT_ADDR:-http://vault_server:8200}
+      # Vault Configuration - Uses shared Vault infrastructure
+      VAULT_ADDR: ${VAULT_ADDR:-http://shared_vault_server:8200}
       VAULT_ROLE_ID: ${VAULT_ROLE_ID}
       VAULT_SECRET_ID: ${VAULT_SECRET_ID}
       
@@ -98,10 +98,10 @@ services:
       - pg_data:/var/lib/postgresql/data
       
       # INIT SCRIPT - Creates users table and seeds default users
-      - type: bind 
-        source: ./be_flask/db_init
-        target: /docker-entrypoint-initdb.d
-        read_only: true
+      # - type: bind 
+      #   source: ./be_flask/db_init
+      #   target: /docker-entrypoint-initdb.d
+      #   read_only: true
     ports:
       - "5432:5432"
     restart: unless-stopped
@@ -121,7 +121,7 @@ networks:
     driver: bridge
   vault_net:
     external: true
-    name: 4_ldap_xacml_vault_net
+    name: shared_vault_net
 
 secrets:
   db_password:

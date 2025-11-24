@@ -1,14 +1,16 @@
-# Application Policy for Flask Backend
+# Application Policy for 4_LDAP_XACML Flask Backend
 # This policy grants the Flask application read access to its secrets
-# and write access to dynamic secrets/tokens if needed.
+# stored in the shared Vault infrastructure.
+#
+# Secrets are namespaced under: secret/4_ldap_xacml/
 
 # Read application secrets (database credentials, JWT key, etc.)
-path "secret/data/app/*" {
+path "secret/data/4_ldap_xacml/app/*" {
   capabilities = ["read", "list"]
 }
 
 # Read database credentials
-path "secret/data/database/*" {
+path "secret/data/4_ldap_xacml/database/*" {
   capabilities = ["read"]
 }
 
@@ -23,11 +25,11 @@ path "auth/token/lookup-self" {
 }
 
 # Read AppRole role ID (for authentication)
-path "auth/approle/role/flask-app/role-id" {
+path "auth/approle/role/4_ldap_xacml-flask-app/role-id" {
   capabilities = ["read"]
 }
 
 # Write to get AppRole secret ID (for authentication)
-path "auth/approle/role/flask-app/secret-id" {
+path "auth/approle/role/4_ldap_xacml-flask-app/secret-id" {
   capabilities = ["update"]
 }

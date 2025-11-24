@@ -1,6 +1,5 @@
-# Vault Keys and Credentials
-# These files contain sensitive information
-vault/scripts/vault-keys.json
+# Vault Application Credentials
+# Vault server is now in ../vault-infrastructure/
 vault/scripts/approle-credentials.txt
 
 # Environment Configuration
@@ -9,10 +8,6 @@ vault/scripts/approle-credentials.txt
 # Database Password Secret
 secrets/
 secrets/db_password.txt
-
-# Vault Data (if using bind mount instead of volume)
-vault/file/
-vault/logs/*.log
 
 # Application Logs
 be_flask/src/*.log

@@ -1,6 +1,11 @@
-# Vault Server Configuration
-# This configuration enables a file-based storage backend for development.
-# In production, consider using Consul, Raft, or cloud-based storage.
+# Shared Vault Server Configuration
+# This Vault instance can be used by multiple applications for secrets management.
+# 
+# Features:
+# - File-based storage for development (use Raft/Consul in production)
+# - HTTP API (enable TLS in production)
+# - UI enabled for management
+# - Audit logging support
 
 ui = true
 
@@ -32,3 +37,9 @@ log_level = "Info"
 # Default lease duration
 default_lease_ttl = "168h"
 max_lease_ttl = "720h"
+
+# Enable audit logging (optional, uncomment to enable)
+# This will log all Vault operations for security auditing
+# audit "file" {
+#   path = "/vault/logs/audit.log"
+# }

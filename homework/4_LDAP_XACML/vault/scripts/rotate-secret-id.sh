@@ -10,8 +10,8 @@ set -e
 
 VAULT_ADDR="${VAULT_ADDR:-http://localhost:8200}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VAULT_KEYS_FILE="$SCRIPT_DIR/vault-keys.json"
-VAULT_CONTAINER="vault_server"
+SHARED_VAULT_KEYS="$SCRIPT_DIR/../../../vault-infrastructure/scripts/vault-keys.json"
+VAULT_CONTAINER="shared_vault_server"
 
 # Helper function to run vault commands in container with token
 vault_exec() {
@@ -23,22 +23,22 @@ echo "Rotate AppRole Secret ID"
 echo "==================================="
 echo ""
 
-# Check if vault-keys.json exists
-if [ ! -f "$VAULT_KEYS_FILE" ]; then
-    echo "❌ Error: vault-keys.json not found"
-    echo "Please run init-vault.sh first."
+# Check if shared vault-keys.json exists
+if [ ! -f "$SHARED_VAULT_KEYS" ]; then
+    echo "❌ Error: Shared vault-keys.json not found"
+    echo "Please initialize shared Vault: cd ../../vault-infrastructure/scripts && ./init-vault.sh"
     exit 1
 fi
 
 # Check if Vault container is running
 if ! docker ps --format '{{.Names}}' | grep -q "^${VAULT_CONTAINER}$"; then
-    echo "❌ Error: Vault container is not running"
-    echo "Please start Vault: docker compose -f docker-compose.vault.yaml up -d"
+    echo "❌ Error: Shared Vault container is not running"
+    echo "Please start Vault: cd ../../vault-infrastructure && docker compose up -d"
     exit 1
 fi
 
-# Get root token
-ROOT_TOKEN=$(jq -r '.root_token' "$VAULT_KEYS_FILE")
+# Get root token from shared Vault
+ROOT_TOKEN=$(jq -r '.root_token' "$SHARED_VAULT_KEYS")
 VAULT_TOKEN="$ROOT_TOKEN"
 
 # Check if Vault is unsealed
@@ -49,12 +49,12 @@ if [ "$SEAL_STATUS" = "true" ]; then
     exit 1
 fi
 
-echo "Generating new Secret ID for flask-app AppRole..."
+echo "Generating new Secret ID for 4_ldap_xacml-flask-app AppRole..."
 echo ""
 
 # Generate new Secret ID
-NEW_SECRET_ID=$(vault_exec write -field=secret_id -f auth/approle/role/flask-app/secret-id)
-ROLE_ID=$(vault_exec read -field=role_id auth/approle/role/flask-app/role-id)
+NEW_SECRET_ID=$(vault_exec write -field=secret_id -f auth/approle/role/4_ldap_xacml-flask-app/secret-id)
+ROLE_ID=$(vault_exec read -field=role_id auth/approle/role/4_ldap_xacml-flask-app/role-id)
 
 echo "✅ New Secret ID generated"
 echo ""
