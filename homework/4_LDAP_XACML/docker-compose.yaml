@@ -1,12 +1,21 @@
 services:
 
   # Layer 1: Web Server (Apache)
-  apache-FE:
-    image: httpd:alpine
+  apache-fe:
+    build: ./apache
     container_name: apache_fe
     ports:
       - "80:80"
       - "443:443"
+    env_file:
+      - .env
+    environment:
+      - VAULT_ADDR=${VAULT_ADDR:-http://shared_vault_server:8200}
+      - APACHE_VAULT_ROLE_ID=${APACHE_VAULT_ROLE_ID}
+      - APACHE_VAULT_SECRET_ID=${APACHE_VAULT_SECRET_ID}
+      - APACHE_VAULT_AUTH_PATH=${APACHE_VAULT_AUTH_PATH:-approle-apache}
+      - PKI_ENGINE=${PKI_ENGINE:-pki_localhost}
+      - PKI_ROLE=${PKI_ROLE:-apache-server-localhost}
     volumes:
       # config
       - type: bind
@@ -17,11 +26,11 @@ services:
         source: ./apache/config/ssl/apache_ssl.conf
         target: /usr/local/apache2/conf/extra/httpd-ssl.conf
         read_only: true
-      # certs folder
-      - type: bind
-        source: ./apache/certs
+      # certs folder - tmpfs (in-memory, not persisted to host)
+      - type: tmpfs
         target: /usr/local/apache2/conf/extra/certs
-        read_only: true
+        tmpfs:
+          size: 10M
       # web files
       - type: bind
         source: ./apache/app
@@ -38,11 +47,12 @@ services:
       - NET_BIND_SERVICE
       - SETGID
       - SETUID
-    restart: unless-stopped # Added for robustness
+    restart: unless-stopped
     networks:
-      - app_net # Connect to the custom network
+      - app_net
+      - shared_vault_net
     depends_on:
-      - backend # Wait for the backend to start
+      - backend
 
   # Layer 2: Backend (Flask)
   backend:
@@ -66,7 +76,7 @@ services:
     restart: unless-stopped # Added for robustness
     networks:
       - app_net # Connect to the custom network
-      - vault_net # Connect to Vault network
+      - shared_vault_net # Connect to Vault network
     # Persist uploaded files on the host so uploads survive container recreation
     volumes:
       - type: bind
@@ -119,9 +129,8 @@ volumes:
 networks:
   app_net:
     driver: bridge
-  vault_net:
+  shared_vault_net:
     external: true
-    name: shared_vault_net
 
 secrets:
   db_password:
