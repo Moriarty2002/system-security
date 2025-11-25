@@ -14,19 +14,16 @@ storage "file" {
   path = "/vault/file"
 }
 
-# HTTP listener on all interfaces
+# HTTPS listener on all interfaces
 listener "tcp" {
   address     = "0.0.0.0:8200"
-  tls_disable = 1
-  
-  # In production, enable TLS:
-  # tls_disable = 0
-  # tls_cert_file = "/vault/certs/vault.crt"
-  # tls_key_file = "/vault/certs/vault.key"
+  tls_disable = 0
+  tls_cert_file = "/vault/certs/vault-cert.pem"
+  tls_key_file = "/vault/certs/vault-key.pem"
 }
 
 # API address
-api_addr = "http://0.0.0.0:8200"
+api_addr = "https://0.0.0.0:8200"
 
 # Disable mlock for containerized environments
 disable_mlock = true
@@ -38,8 +35,7 @@ log_level = "Info"
 default_lease_ttl = "168h"
 max_lease_ttl = "720h"
 
-# Enable audit logging (optional, uncomment to enable)
+# Enable audit logging
 # This will log all Vault operations for security auditing
-# audit "file" {
-#   path = "/vault/logs/audit.log"
-# }
+# Note: Audit logging is enabled via CLI after Vault initialization
+# Run: vault audit enable file file_path=/vault/logs/audit.log

@@ -22,7 +22,7 @@ import logging
 import time
 from typing import Dict, Optional, Any
 from threading import Lock
-
+import urllib3
 import hvac
 from hvac.exceptions import VaultError, InvalidPath
 
@@ -38,6 +38,13 @@ class VaultClient:
         self.vault_addr = os.environ.get('VAULT_ADDR', 'http://vault_server:8200')
         self.role_id = os.environ.get('VAULT_ROLE_ID')
         self.secret_id = os.environ.get('VAULT_SECRET_ID')
+        # Skip TLS verification for self-signed certificates (dev only)
+        # When VAULT_SKIP_VERIFY=1, we want verify=False
+        self.verify_tls = os.environ.get('VAULT_SKIP_VERIFY', '0') == '0'
+        
+        # Disable SSL warnings when skipping verification
+        if not self.verify_tls:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         
         self.client: Optional[hvac.Client] = None
         self.token_expiry: float = 0
@@ -64,7 +71,7 @@ class VaultClient:
         
         try:
             # Quick health check
-            client = hvac.Client(url=self.vault_addr)
+            client = hvac.Client(url=self.vault_addr, verify=self.verify_tls)
             health = client.sys.read_health_status(method='GET')
             if health:
                 logger.info(f"Vault server is reachable at {self.vault_addr}")
@@ -77,7 +84,7 @@ class VaultClient:
     def _authenticate(self) -> None:
         """Authenticate with Vault using AppRole and store the token."""
         try:
-            self.client = hvac.Client(url=self.vault_addr)
+            self.client = hvac.Client(url=self.vault_addr, verify=self.verify_tls)
             
             # Authenticate using AppRole
             auth_response = self.client.auth.approle.login(

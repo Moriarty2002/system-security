@@ -14,7 +14,7 @@ VAULT_CONTAINER="shared_vault_server"
 
 # Helper function to run vault commands in container
 vault_exec() {
-    docker exec "$VAULT_CONTAINER" vault "$@"
+    docker exec -e VAULT_SKIP_VERIFY=1 "$VAULT_CONTAINER" vault "$@"
 }
 
 echo "==================================="

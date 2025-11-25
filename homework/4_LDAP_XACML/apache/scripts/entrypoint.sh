@@ -2,7 +2,7 @@
 set -e
 
 # Fetch certificates from Vault on startup
-VAULT_ADDR="${VAULT_ADDR:-http://shared_vault_server:8200}"
+VAULT_ADDR="${VAULT_ADDR:-https://shared_vault_server:8200}"
 VAULT_ROLE_ID="${APACHE_VAULT_ROLE_ID}"
 VAULT_SECRET_ID="${APACHE_VAULT_SECRET_ID}"
 VAULT_AUTH_PATH="${APACHE_VAULT_AUTH_PATH:-approle-apache}"
@@ -13,8 +13,8 @@ CERT_DIR="/usr/local/apache2/conf/extra/certs"
 
 echo "Authenticating with Vault using AppRole..."
 
-# Authenticate with AppRole to get a token
-AUTH_RESPONSE=$(wget -qO- \
+# Authenticate with AppRole to get a token (skip TLS verification for self-signed cert)
+AUTH_RESPONSE=$(wget --no-check-certificate -qO- \
   --method=POST \
   --header="Content-Type: application/json" \
   --body-data="{\"role_id\":\"${VAULT_ROLE_ID}\",\"secret_id\":\"${VAULT_SECRET_ID}\"}" \
@@ -41,7 +41,7 @@ echo "Fetching certificates from Vault..."
 
 # First, try to get existing certificate from KV store
 echo "Checking for existing certificate in KV store..."
-EXISTING_CERT=$(wget -qO- --header "X-Vault-Token: ${VAULT_TOKEN}" \
+EXISTING_CERT=$(wget --no-check-certificate -qO- --header "X-Vault-Token: ${VAULT_TOKEN}" \
   "${VAULT_ADDR}/v1/${KV_PATH}" 2>&1 || echo "")
 
 if echo "$EXISTING_CERT" | grep -q '"server_cert"'; then
@@ -59,7 +59,7 @@ else
     echo "No existing certificate found, generating new one from PKI..."
     
     # Generate new certificate from PKI
-    RESPONSE=$(wget -qO- \
+    RESPONSE=$(wget --no-check-certificate -qO- \
       --method=POST \
       --header="X-Vault-Token: ${VAULT_TOKEN}" \
       --header="Content-Type: application/json" \
@@ -96,7 +96,7 @@ else
           --arg ca "$CA_CHAIN" \
           '{data: {server_cert: $cert, server_key: $key, ca_chain: $ca}}')
         
-        wget -qO- \
+        wget --no-check-certificate -qO- \
           --method=POST \
           --header="X-Vault-Token: ${VAULT_TOKEN}" \
           --header="Content-Type: application/json" \

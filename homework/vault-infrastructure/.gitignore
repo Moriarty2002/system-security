@@ -2,6 +2,12 @@
 scripts/vault-keys.json
 scripts/approle-credentials.txt
 
+# TLS Certificates (regenerate for each deployment)
+certs/*.pem
+certs/*.key
+certs/*.crt
+certs/*.csr
+
 # Logs
 logs/*.log
 logs/*.json

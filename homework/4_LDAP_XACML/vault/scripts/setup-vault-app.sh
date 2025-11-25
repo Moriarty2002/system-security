@@ -13,7 +13,7 @@
 
 set -e
 
-VAULT_ADDR="${VAULT_ADDR:-http://localhost:8200}"
+VAULT_ADDR="${VAULT_ADDR:-https://localhost:8200}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR/../.."
 SHARED_VAULT_KEYS="$SCRIPT_DIR/../../../vault-infrastructure/scripts/vault-keys.json"
@@ -23,9 +23,9 @@ APP_CREDENTIALS_FILE="$SCRIPT_DIR/approle-credentials.txt"
 # Helper function to run vault commands in container
 vault_exec() {
     if [ -n "$VAULT_TOKEN" ]; then
-        docker exec -e VAULT_TOKEN="$VAULT_TOKEN" "$VAULT_CONTAINER" vault "$@"
+        docker exec -e VAULT_TOKEN="$VAULT_TOKEN" -e VAULT_SKIP_VERIFY=1 "$VAULT_CONTAINER" vault "$@"
     else
-        docker exec "$VAULT_CONTAINER" vault "$@"
+        docker exec -e VAULT_SKIP_VERIFY=1 "$VAULT_CONTAINER" vault "$@"
     fi
 }
 
@@ -44,7 +44,7 @@ if ! docker ps --format '{{.Names}}' | grep -q "^${VAULT_CONTAINER}$"; then
 fi
 
 # Check if Vault is accessible
-if ! curl -s "$VAULT_ADDR/v1/sys/health" > /dev/null 2>&1; then
+if ! curl -sk "$VAULT_ADDR/v1/sys/health" > /dev/null 2>&1; then
     echo "❌ Error: Vault is not accessible at $VAULT_ADDR"
     exit 1
 fi

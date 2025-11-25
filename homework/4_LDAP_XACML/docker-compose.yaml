@@ -10,7 +10,8 @@ services:
     env_file:
       - .env
     environment:
-      - VAULT_ADDR=${VAULT_ADDR:-http://shared_vault_server:8200}
+      - VAULT_ADDR=${VAULT_ADDR:-https://shared_vault_server:8200}
+      - VAULT_SKIP_VERIFY=1
       - APACHE_VAULT_ROLE_ID=${APACHE_VAULT_ROLE_ID}
       - APACHE_VAULT_SECRET_ID=${APACHE_VAULT_SECRET_ID}
       - APACHE_VAULT_AUTH_PATH=${APACHE_VAULT_AUTH_PATH:-approle-apache}
@@ -62,7 +63,8 @@ services:
       - .env
     environment:
       # Vault Configuration - Uses shared Vault infrastructure
-      VAULT_ADDR: ${VAULT_ADDR:-http://shared_vault_server:8200}
+      VAULT_ADDR: ${VAULT_ADDR:-https://shared_vault_server:8200}
+      VAULT_SKIP_VERIFY: 1
       VAULT_ROLE_ID: ${VAULT_ROLE_ID}
       VAULT_SECRET_ID: ${VAULT_SECRET_ID}
       
