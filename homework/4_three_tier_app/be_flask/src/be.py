@@ -77,12 +77,13 @@ def create_app(config_object=None) -> Flask:
             app.logger.warning("⚠️  Vault unavailable - using fallback configuration")
     
     # Log database connection (without exposing password)
-    db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
-    if db_uri:
-        # Mask password in log
-        import re
-        masked_uri = re.sub(r'://([^:]+):([^@]+)@', r'://\1:****@', db_uri)
-        app.logger.info(f"Database URI: {masked_uri}")
+    db_uri = app.config.get('SQLALCHEMY_DATABASE_URI')
+    if not db_uri:
+        raise RuntimeError("SQLALCHEMY_DATABASE_URI not configured")
+    # Mask password in log
+    import re
+    masked_uri = re.sub(r'://([^:]+):([^@]+)@', r'://\1:****@', db_uri)
+    app.logger.info(f"Database URI: {masked_uri}")
 
     # Initialize extensions
     CORS(app)

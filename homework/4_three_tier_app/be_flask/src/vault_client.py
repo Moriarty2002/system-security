@@ -18,9 +18,12 @@ class VaultClient:
 
     def __init__(self):
         """Initialize Vault client with AppRole authentication."""
-        self.vault_addr = os.environ.get('VAULT_ADDR', 'http://vault_server:8200')
+        self.vault_addr = os.environ.get('VAULT_ADDR')
         self.role_id = os.environ.get('VAULT_ROLE_ID')
         self.secret_id = os.environ.get('VAULT_SECRET_ID')
+        
+        if not self.vault_addr:
+            raise RuntimeError("VAULT_ADDR environment variable is required")
         # Skip TLS verification for self-signed certificates (dev only)
         # When VAULT_SKIP_VERIFY=1, we want verify=False
         self.verify_tls = os.environ.get('VAULT_SKIP_VERIFY', '0') == '0'
@@ -187,12 +190,16 @@ class VaultClient:
             username = db_secrets.get('username')
             password = db_secrets.get('password')
             database = db_secrets.get('database')
-            host = db_secrets.get('host', 'db')
-            port = db_secrets.get('port', '5432')
+            host = db_secrets.get('host')
+            port = db_secrets.get('port')
+            
+            # Validate all required fields are present
+            if not all([username, password, database, host, port]):
+                raise RuntimeError("Incomplete database configuration in Vault. Required: username, password, database, host, port")
             
             # URL-encode credentials to handle special characters
-            username_encoded = quote_plus(username) if username else ''
-            password_encoded = quote_plus(password) if password else ''
+            username_encoded = quote_plus(username)
+            password_encoded = quote_plus(password)
             
             return {
                 'username': username,

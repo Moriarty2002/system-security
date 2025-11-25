@@ -68,7 +68,10 @@ class Config:
             Default password for the user
         """
         password_key = f'{username.lower()}_password'
-        return self.app_secrets.get(password_key, username)
+        password = self.app_secrets.get(password_key)
+        if not password:
+            raise RuntimeError(f"Password for user '{username}' not found in Vault at key '{password_key}'")
+        return password
 
 
 class DevelopmentConfig(Config):
@@ -83,7 +86,12 @@ class ProductionConfig(Config):
 
 def get_config() -> Config:
     """Get configuration based on environment."""
-    env = os.environ.get('FLASK_ENV', 'development')
+    env = os.environ.get('FLASK_ENV')
+    if not env:
+        raise RuntimeError("FLASK_ENV environment variable is required (production or development)")
     if env == 'production':
         return ProductionConfig()
-    return DevelopmentConfig()
+    elif env == 'development':
+        return DevelopmentConfig()
+    else:
+        raise RuntimeError(f"Invalid FLASK_ENV value: {env}. Must be 'production' or 'development'")

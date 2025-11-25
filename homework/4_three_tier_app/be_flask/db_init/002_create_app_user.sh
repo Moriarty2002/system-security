@@ -6,11 +6,28 @@ set -e
 
 echo "Creating application user for Flask backend..."
 
-# Get credentials from environment
-ADMIN_USER="${POSTGRES_USER:-admin}"
-APP_USER="${POSTGRES_APP_USER:-flask_app}"
-APP_PASSWORD="${POSTGRES_APP_PASSWORD:-flask_app_password}"
-DB_NAME="${POSTGRES_DB:-postgres_db}"
+# Get credentials from environment (fail fast if not provided)
+if [ -z "$POSTGRES_USER" ]; then
+    echo "ERROR: POSTGRES_USER environment variable is required"
+    exit 1
+fi
+if [ -z "$POSTGRES_APP_USER" ]; then
+    echo "ERROR: POSTGRES_APP_USER environment variable is required"
+    exit 1
+fi
+if [ -z "$POSTGRES_APP_PASSWORD" ]; then
+    echo "ERROR: POSTGRES_APP_PASSWORD environment variable is required"
+    exit 1
+fi
+if [ -z "$POSTGRES_DB" ]; then
+    echo "ERROR: POSTGRES_DB environment variable is required"
+    exit 1
+fi
+
+ADMIN_USER="$POSTGRES_USER"
+APP_USER="$POSTGRES_APP_USER"
+APP_PASSWORD="$POSTGRES_APP_PASSWORD"
+DB_NAME="$POSTGRES_DB"
 
 # Create application user
 psql -v ON_ERROR_STOP=1 --username "$ADMIN_USER" --dbname "$DB_NAME" <<-EOSQL

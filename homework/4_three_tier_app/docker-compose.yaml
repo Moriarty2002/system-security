@@ -12,11 +12,11 @@ services:
     environment:
       - VAULT_ADDR=${VAULT_ADDR:-https://shared_vault_server:8200}
       - VAULT_SKIP_VERIFY=1
-      - APACHE_VAULT_ROLE_ID=${APACHE_VAULT_ROLE_ID}
-      - APACHE_VAULT_SECRET_ID=${APACHE_VAULT_SECRET_ID}
-      - APACHE_VAULT_AUTH_PATH=${APACHE_VAULT_AUTH_PATH:-approle-apache}
-      - PKI_ENGINE=${PKI_ENGINE:-pki_localhost}
-      - PKI_ROLE=${PKI_ROLE:-apache-server-localhost}
+      - APACHE_VAULT_ROLE_ID=${APACHE_VAULT_ROLE_ID:?APACHE_VAULT_ROLE_ID is required}
+      - APACHE_VAULT_SECRET_ID=${APACHE_VAULT_SECRET_ID:?APACHE_VAULT_SECRET_ID is required}
+      - APACHE_VAULT_AUTH_PATH=${APACHE_VAULT_AUTH_PATH:?APACHE_VAULT_AUTH_PATH is required}
+      - PKI_ENGINE=${PKI_ENGINE:?PKI_ENGINE is required}
+      - PKI_ROLE=${PKI_ROLE:?PKI_ROLE is required}
     volumes:
       # config
       - type: bind
@@ -65,11 +65,11 @@ services:
       # Vault Configuration - Uses shared Vault infrastructure
       VAULT_ADDR: ${VAULT_ADDR:-https://shared_vault_server:8200}
       VAULT_SKIP_VERIFY: 1
-      VAULT_ROLE_ID: ${VAULT_ROLE_ID}
-      VAULT_SECRET_ID: ${VAULT_SECRET_ID}
+      VAULT_ROLE_ID: ${VAULT_ROLE_ID:?VAULT_ROLE_ID is required}
+      VAULT_SECRET_ID: ${VAULT_SECRET_ID:?VAULT_SECRET_ID is required}
       
       # Application Configuration
-      FLASK_ENV: ${FLASK_ENV:-production}
+      FLASK_ENV: ${FLASK_ENV:?FLASK_ENV is required (production or development)}
       PYTHONUNBUFFERED: 1
       
       # Fallback for local development (will be overridden by Vault in production)
@@ -99,12 +99,12 @@ services:
     container_name: postgres_db
     environment:
       # Admin credentials for database initialization
-      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
       POSTGRES_PASSWORD_FILE: /run/secrets/db_password
-      POSTGRES_DB: ${POSTGRES_DB:-postgres_db}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
       # Application user credentials (limited privileges)
-      POSTGRES_APP_USER: ${POSTGRES_APP_USER:-flask_app}
-      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-flask_app_password}
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER:?POSTGRES_APP_USER is required}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD is required}
     secrets:
       - db_password
     volumes:
@@ -124,7 +124,7 @@ services:
     networks:
       - app_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-postgres_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
