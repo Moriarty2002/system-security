@@ -96,24 +96,28 @@ services:
     image: postgres:14-alpine
     container_name: postgres_db
     environment:
-      # Database credentials will be managed by Vault
-      # For initial setup, these are read from .env which gets values from Vault init
+      # Admin credentials for database initialization
       POSTGRES_USER: ${POSTGRES_USER:-admin}
       POSTGRES_PASSWORD_FILE: /run/secrets/db_password
       POSTGRES_DB: ${POSTGRES_DB:-postgres_db}
+      # Application user credentials (limited privileges)
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER:-flask_app}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-flask_app_password}
     secrets:
       - db_password
     volumes:
       # Use a named volume instead of bind mount
       - pg_data:/var/lib/postgresql/data
       
-      # INIT SCRIPT - Creates users table and seeds default users
-      # - type: bind 
-      #   source: ./be_flask/db_init
-      #   target: /docker-entrypoint-initdb.d
-      #   read_only: true
-    ports:
-      - "5432:5432"
+      # INIT SCRIPTS - Creates tables, users, and application user
+      - type: bind 
+        source: ./be_flask/db_init
+        target: /docker-entrypoint-initdb.d
+        read_only: true
+    # Security: No ports exposed - only accessible via internal network
+    # Uncomment if you need direct database access for debugging:
+    # ports:
+    #   - "5432:5432"
     restart: unless-stopped
     networks:
       - app_net
