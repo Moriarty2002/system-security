@@ -24,7 +24,7 @@ A production-ready web application with enterprise-grade secrets management usin
 - Audit logging
 - **Shared by multiple applications**
 
-**2. Application Stack** (This project: 4_LDAP_XACML)
+**2. Application Stack** (This project: 4_three_tier_app)
 - Apache HTTPS frontend
 - Flask API backend
 - PostgreSQL database
@@ -55,7 +55,7 @@ sleep 10
 cd scripts
 ./init-vault.sh
 ./init-vault.sh
-cd ../../4_LDAP_XACML
+cd ../../4_three_tier_app
 ```
 
 **⚠️ IMPORTANT**: The script creates `vault-keys.json` with unseal keys in `../vault-infrastructure/scripts/`. **Keep this file secure and backed up!**
@@ -82,7 +82,7 @@ Since the database init script was just generated, you need to reset the databas
 ```bash
 # Stop services and remove database volume
 docker compose down -v
-docker volume rm 4_ldap_xacml_pg_data 2>/dev/null || true
+docker volume rm 4_three_tier_app_pg_data 2>/dev/null || true
 
 # This ensures the init script runs when database starts
 ```
@@ -90,7 +90,7 @@ docker volume rm 4_ldap_xacml_pg_data 2>/dev/null || true
 ### Step 4: Start Application
 
 ```bash
-# Start the application stack (from 4_LDAP_XACML directory)
+# Start the application stack (from 4_three_tier_app directory)
 docker compose up -d
 
 # Verify Vault integration
@@ -151,7 +151,7 @@ Vault seals itself when the container restarts for security:
 ```bash
 cd ../vault-infrastructure/scripts
 ./unseal-vault.sh
-cd ../../4_LDAP_XACML
+cd ../../4_three_tier_app
 ```
 
 ### Rotate AppRole Credentials

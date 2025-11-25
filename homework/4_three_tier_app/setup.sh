@@ -91,7 +91,7 @@ if docker ps | grep -q shared_vault_server; then
             echo "Vault is sealed, unsealing..."
             cd ../vault-infrastructure/scripts
             ./unseal-vault.sh
-            cd ../../4_LDAP_XACML
+            cd ../../4_three_tier_app
         else
             echo "✅ Vault is already unsealed"
         fi
@@ -104,7 +104,7 @@ else
     echo "Starting shared Vault server..."
     cd ../vault-infrastructure
     docker compose up -d
-    cd ../4_LDAP_XACML
+    cd ../4_three_tier_app
     
     echo "Waiting for Vault to be ready..."
     sleep 10
@@ -135,7 +135,7 @@ else
     
     cd ../vault-infrastructure/scripts
     ./init-vault.sh
-    cd ../../4_LDAP_XACML
+    cd ../../4_three_tier_app
 fi
 
 echo ""

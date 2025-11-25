@@ -21,7 +21,7 @@ homework/
 │   ├── scripts/                   # Management scripts
 │   └── logs/                      # Vault audit logs
 │
-├── 4_LDAP_XACML/                  # Application using Vault
+├── 4_three_tier_app/                  # Application using Vault
 │   ├── docker-compose.yaml        # Connects to shared vault
 │   ├── vault/                     # App-specific Vault config
 │   │   ├── policies/              # App policies
@@ -105,7 +105,7 @@ Each application should:
 
 3. **Create application-specific policies** in `policies/`:
    ```hcl
-   # Example: 4_LDAP_XACML/vault/policies/app-policy.hcl
+   # Example: 4_three_tier_app/vault/policies/app-policy.hcl
    path "secret/data/4_ldap_xacml/*" {
      capabilities = ["read", "list"]
    }
@@ -122,7 +122,7 @@ Each application should:
 
 5. **Store secrets** under application namespace:
    ```bash
-   # Example: secrets for 4_LDAP_XACML
+   # Example: secrets for 4_three_tier_app
    vault kv put secret/4_ldap_xacml/database \
      username="admin" \
      password="secure_password"
@@ -201,13 +201,13 @@ cd homework/vault-infrastructure/scripts
 ./unseal-vault.sh
 
 # Then start your applications
-cd ../../4_LDAP_XACML
+cd ../../4_three_tier_app
 ./setup.sh
 ```
 
 ## 📖 Applications Using This Vault
 
-- **4_LDAP_XACML**: File Storage Service with JWT authentication
+- **4_three_tier_app**: File Storage Service with JWT authentication
   - Stores: DB credentials, JWT secrets, user passwords
   - Namespace: `secret/4_ldap_xacml/`
 

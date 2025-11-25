@@ -1,4 +1,4 @@
-# Application Policy for 4_LDAP_XACML Flask Backend
+# Application Policy for 4_three_tier_app Flask Backend
 # This policy grants the Flask application read access to its secrets
 # stored in the shared Vault infrastructure.
 #

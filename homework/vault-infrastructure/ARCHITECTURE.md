@@ -38,7 +38,7 @@
 │                                 │                                │
 │                                 │                                │
 │  ┌──────────────────────────────┼─────────────────────────────┐ │
-│  │     Application: 4_LDAP_XACML (Ports 80, 443, 5432)       │ │
+│  │     Application: 4_three_tier_app (Ports 80, 443, 5432)    │ │
 │  │                               │                              │ │
 │  │  ┌────────────────────────────┼──────────────────────────┐  │ │
 │  │  │  Frontend: apache-FE       │  Backend: flask_be       │  │ │
@@ -163,13 +163,13 @@
 │  │                                                      │ │
 │  │  Connected:                                         │ │
 │  │  ├─ shared_vault_server (Vault)                    │ │
-│  │  ├─ flask_be (4_LDAP_XACML backend)               │ │
+│  │  ├─ flask_be (4_three_tier_app backend)               │ │
 │  │  └─ [other apps can connect here]                  │ │
 │  │                                                      │ │
 │  └────────────────────────────────────────────────────┘ │
 │                                                          │
 │  ┌────────────────────────────────────────────────────┐ │
-│  │  app_net (4_LDAP_XACML internal network)          │ │
+│  │  app_net (4_three_tier_app internal network)          │ │
 │  │  Bridge - Application-specific                     │ │
 │  │                                                      │ │
 │  │  Connected:                                         │ │
@@ -267,7 +267,7 @@ Security Features:
 │         │                                  │                 │
 │         ▼                                  ▼                 │
 │  ┌─────────────────┐              ┌─────────────────┐       │
-│  │  4_LDAP_XACML   │              │  3_Web_Server   │       │
+│  │ 4_three_tier_app│              │  3_Web_Server   │       │
 │  │  Application    │              │  Application    │       │
 │  │                 │              │                 │       │
 │  │  AppRole:       │              │  AppRole:       │       │

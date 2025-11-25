@@ -1,7 +1,7 @@
 #!/bin/bash
 # Application-Specific Vault Configuration
 # 
-# This script configures the shared Vault server for the 4_LDAP_XACML application.
+# This script configures the shared Vault server for the 4_three_tier_app application.
 # It creates policies, AppRoles, and stores application secrets.
 #
 # Prerequisites:
@@ -30,7 +30,7 @@ vault_exec() {
 }
 
 echo "==================================="
-echo "4_LDAP_XACML Vault Configuration"
+echo "4_three_tier_app Vault Configuration"
 echo "==================================="
 echo ""
 echo "Vault Address: $VAULT_ADDR"
@@ -76,12 +76,12 @@ echo "Creating Application Policies..."
 echo "==================================="
 echo ""
 
-echo "Creating app-policy for 4_LDAP_XACML..."
+echo "Creating app-policy for 4_three_tier_app..."
 docker exec -i -e VAULT_TOKEN="$VAULT_TOKEN" "$VAULT_CONTAINER" vault policy write 4_ldap_xacml-app - < "$SCRIPT_DIR/../policies/app-policy.hcl"
 echo "✅ Application policy created"
 
 echo ""
-echo "Creating admin-policy for 4_LDAP_XACML..."
+echo "Creating admin-policy for 4_three_tier_app..."
 docker exec -i -e VAULT_TOKEN="$VAULT_TOKEN" "$VAULT_CONTAINER" vault policy write 4_ldap_xacml-admin - < "$SCRIPT_DIR/../policies/admin-policy.hcl"
 echo "✅ Admin policy created"
 
@@ -92,7 +92,7 @@ echo "Creating AppRole..."
 echo "==================================="
 echo ""
 
-echo "Creating AppRole for 4_LDAP_XACML Flask application..."
+echo "Creating AppRole for 4_three_tier_app Flask application..."
 vault_exec write auth/approle/role/4_ldap_xacml-flask-app \
     token_policies="4_ldap_xacml-app" \
     token_ttl=1h \
@@ -108,7 +108,7 @@ SECRET_ID=$(vault_exec write -field=secret_id -f auth/approle/role/4_ldap_xacml-
 
 # Save AppRole credentials
 cat > "$APP_CREDENTIALS_FILE" <<EOF
-4_LDAP_XACML Flask Application AppRole Credentials
+4_three_tier_app Flask Application AppRole Credentials
 ===================================================
 Role ID: $ROLE_ID
 Secret ID: $SECRET_ID

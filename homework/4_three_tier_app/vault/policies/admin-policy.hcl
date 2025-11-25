@@ -1,4 +1,4 @@
-# Admin Policy for 4_LDAP_XACML Vault Management
+# Admin Policy for 4_three_tier_app Vault Management
 # This policy grants administrative access for managing this application's
 # secrets in the shared Vault infrastructure.
 #
