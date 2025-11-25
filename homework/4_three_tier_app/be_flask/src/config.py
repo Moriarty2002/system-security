@@ -12,6 +12,7 @@ class Config:
         self._vault_client = None
         self._app_secrets = None
         self._db_config = None
+        self._minio_client = None
 
     @property
     def vault_client(self):
@@ -54,9 +55,19 @@ class Config:
 
     @property
     def STORAGE_DIR(self) -> str:
-        """Storage directory for user files."""
+        """Storage directory for user files (legacy - now using MinIO)."""
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         return os.path.join(base_dir, 'storage')
+
+    @property
+    def MINIO_CLIENT(self):
+        """Get MinIO client instance."""
+        if self._minio_client is None:
+            from .minio_client import get_minio_client
+            self._minio_client = get_minio_client()
+            if not self._minio_client:
+                raise RuntimeError("Failed to initialize MinIO client")
+        return self._minio_client
 
     def get_user_password(self, username: str) -> str:
         """Get default password for a user from Vault.

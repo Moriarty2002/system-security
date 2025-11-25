@@ -28,6 +28,7 @@ A production-ready web application with enterprise-grade secrets management usin
 - Apache HTTPS frontend
 - Flask API backend
 - PostgreSQL database
+- MinIO object storage (S3-compatible)
 - Connects to shared Vault for secrets
 
 This separation enables:
@@ -36,6 +37,7 @@ This separation enables:
 - ✅ Production deployment on separate hosts
 - ✅ Enhanced security through isolation
 - ✅ Real-world architecture simulation
+- ✅ Scalable object storage for user files
 
 ## 🚀 Quick Start
 
@@ -104,6 +106,7 @@ docker compose logs backend | grep Vault
 
 - **Application**: https://localhost (or http://localhost)
 - **Vault UI**: http://localhost:8200
+- **MinIO Console**: http://localhost:9001 (credentials: minioadmin/minioadmin)
 - **API**: http://localhost:5000
 
 **Default Users** (passwords managed by Vault):
@@ -115,6 +118,40 @@ docker compose logs backend | grep Vault
 
 - **[VAULT_INTEGRATION.md](VAULT_INTEGRATION.md)** - Complete Vault setup and management guide
 - **[.env.example](.env.example)** - Environment configuration template
+
+## 🗄️ Storage Architecture
+
+### MinIO Object Storage
+
+This application uses **MinIO** for file storage instead of traditional filesystem storage. This provides:
+
+**Benefits**:
+- ✅ **Scalability**: Horizontal scaling across multiple nodes
+- ✅ **S3 Compatibility**: Industry-standard API (boto3/minio libraries)
+- ✅ **Cloud-Ready**: Mirrors real cloud providers (AWS S3, Azure Blob, GCP)
+- ✅ **Multi-tenancy**: Built-in access control and user isolation
+- ✅ **Durability**: Erasure coding and bit-rot protection
+- ✅ **Container-friendly**: No volume mounts needed for file storage
+
+**Storage Layout**:
+```
+MinIO Bucket: user-files/
+├── alice/
+│   ├── document.pdf
+│   └── photos/image.jpg
+├── bob/
+│   └── data.csv
+└── .bin/
+    └── alice_20251125_123456_document.pdf  # Deleted files
+```
+
+**Configuration**:
+- Endpoint: `minio:9000` (internal), `localhost:9000` (external)
+- Console: `localhost:9001`
+- Bucket: `user-files`
+- Credentials managed via environment variables
+
+The Flask backend uses the `minio` Python client to interact with MinIO using S3-compatible APIs.
 
 ## 🏗️ Database Initialization
 
@@ -153,6 +190,21 @@ cd ../vault-infrastructure/scripts
 ./unseal-vault.sh
 cd ../../4_three_tier_app
 ```
+
+### Access MinIO Console
+
+View and manage user files in the MinIO web console:
+
+```bash
+# Access at: http://localhost:9001
+# Default credentials: minioadmin / minioadmin
+```
+
+MinIO provides:
+- Web-based file browser
+- Bucket management
+- Access policy configuration
+- Monitoring and metrics
 
 ### Rotate AppRole Credentials
 
@@ -230,8 +282,7 @@ See [VAULT_INTEGRATION.md](VAULT_INTEGRATION.md) for production guidelines.
 
 ```
 .
-├── docker-compose.vault.yaml       # Vault infrastructure
-├── docker-compose.yaml             # Application stack
+├── docker-compose.yaml             # Application stack (Apache, Flask, PostgreSQL, MinIO)
 ├── VAULT_INTEGRATION.md           # Vault documentation
 ├── .env.example                   # Configuration template
 ├── vault/
@@ -248,9 +299,13 @@ See [VAULT_INTEGRATION.md](VAULT_INTEGRATION.md) for production guidelines.
 ├── be_flask/
 │   └── src/
 │       ├── vault_client.py       # Vault integration
+│       ├── minio_client.py       # MinIO/S3 client
 │       ├── config.py             # Config with Vault
 │       ├── auth.py               # JWT auth with Vault
-│       └── db_utils.py           # DB initialization
+│       ├── utils_minio.py        # MinIO-based utilities
+│       └── blueprints/
+│           ├── files.py          # File operations (MinIO)
+│           └── admin.py          # Admin endpoints
 └── secrets/                       # Docker secrets (git-ignored)
     └── db_password.txt
 ```

@@ -1,7 +1,7 @@
 import os
 import shutil
 from typing import List, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from .models import db, BinItem
 
 
@@ -119,7 +119,7 @@ def move_to_bin(username: str, item_path: str, storage_dir: str) -> str:
     bin_dir = ensure_bin_directory(storage_dir)
     
     # Create unique bin path
-    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
     bin_item_name = f"{username}_{timestamp}_{os.path.basename(item_path)}"
     bin_item_path = os.path.join(bin_dir, bin_item_name)
     
@@ -203,7 +203,7 @@ def cleanup_expired_bin_items(storage_dir: str) -> int:
     Returns:
         Number of items cleaned up
     """
-    cutoff_date = datetime.utcnow() - timedelta(days=5)
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=5)
     expired_items = BinItem.query.filter(BinItem.deleted_at < cutoff_date).all()
     
     bin_dir = ensure_bin_directory(storage_dir)

@@ -72,6 +72,13 @@ services:
       FLASK_ENV: ${FLASK_ENV:?FLASK_ENV is required (production or development)}
       PYTHONUNBUFFERED: 1
       
+      # MinIO Configuration
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-user-files}
+      MINIO_USE_SSL: "false"
+      
       # Fallback for local development (will be overridden by Vault in production)
       # These are only used if Vault is unavailable
       POSTGRES_HOST: db
@@ -79,11 +86,6 @@ services:
     networks:
       - app_net # Connect to the custom network
       - shared_vault_net # Connect to Vault network
-    # Persist uploaded files on the host so uploads survive container recreation
-    volumes:
-      - type: bind
-        source: ./be_flask/storage
-        target: /app/storage
     # This service doesn't need 'ports' as it's only accessed
     # by the apache-FE service over the internal 'app_net' network.
     expose:
@@ -91,6 +93,8 @@ services:
     depends_on:
       db:
         # Wait for the DB to be fully ready, not just started
+        condition: service_healthy
+      minio:
         condition: service_healthy
 
   # Layer 3: Database
@@ -129,8 +133,31 @@ services:
       timeout: 5s
       retries: 5
 
+  # Object Storage (MinIO - S3-compatible)
+  minio:
+    image: minio/minio:latest
+    container_name: minio_storage
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"  # API endpoint
+      - "9001:9001"  # Web console
+    restart: unless-stopped
+    networks:
+      - app_net
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   pg_data:
+  minio_data:
 
 networks:
   app_net:

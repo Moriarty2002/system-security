@@ -7,3 +7,5 @@ psycopg2-binary>=2.9
 PyJWT>=2.0
 # HashiCorp Vault client
 hvac>=1.2.1
+# MinIO (S3-compatible object storage)
+minio>=7.1.0

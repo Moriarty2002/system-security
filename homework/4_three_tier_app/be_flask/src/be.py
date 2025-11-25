@@ -20,7 +20,6 @@ from flask_cors import CORS
 
 from .config import get_config
 from .models import db
-from .utils import ensure_storage_directory
 from .blueprints.auth import auth_bp
 from .blueprints.files import files_bp
 from .blueprints.admin import admin_bp
@@ -65,9 +64,19 @@ def create_app(config_object=None) -> Flask:
 
     # Add storage directory to config
     app.config['STORAGE_DIR'] = config.STORAGE_DIR
+    
+    # Add MinIO client to config
+    try:
+        app.config['MINIO_CLIENT'] = config.MINIO_CLIENT
+    except Exception as e:
+        print(f"❌ Failed to initialize MinIO client: {e}")
+        raise
 
     # Setup logging
     setup_logging(app)
+    
+    # Log MinIO initialization status
+    app.logger.info("✅ MinIO client initialized - using object storage")
     
     # Log Vault status and database URI
     if hasattr(config, 'vault_client'):
@@ -94,9 +103,8 @@ def create_app(config_object=None) -> Flask:
     app.register_blueprint(files_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
 
-    # Initialize storage and database
+    # Initialize database
     with app.app_context():
-        ensure_storage_directory(app.config['STORAGE_DIR'])
         
         try:
             # Create table metadata (does NOT create tables if they exist)

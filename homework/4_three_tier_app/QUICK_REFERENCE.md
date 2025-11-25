@@ -87,6 +87,7 @@ docker network ls | grep -E "vault|app"
 |---------|-----|-------------|
 | Application | http://localhost | admin/admin123, alice/alice123 |
 | Vault UI | http://localhost:8200 | Token from vault-keys.json |
+| MinIO Console | http://localhost:9001 | minioadmin/minioadmin |
 | Backend API | http://localhost:5000 | JWT from /auth/login |
 | Database | localhost:5432 | From Vault secrets |
 

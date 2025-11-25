@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request, current_app
 
 from ..auth import authenticate_user, require_admin, hash_password
 from ..models import db, User
-from ..utils import get_user_usage_bytes
+from ..utils_minio import get_user_usage_bytes
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -12,6 +12,8 @@ def list_users():
     """List all users with their details (admin only)."""
     _, user = authenticate_user()
     require_admin(user)
+    
+    minio_client = current_app.config['MINIO_CLIENT']
 
     users = User.query.order_by(User.username).all()
     results = []
@@ -20,7 +22,7 @@ def list_users():
             'username': u.username,
             'role': u.role,
             'quota': u.quota,
-            'usage': get_user_usage_bytes(u.username, current_app.config['STORAGE_DIR'])
+            'usage': get_user_usage_bytes(u.username, minio_client)
         })
 
     return jsonify({'users': results})
@@ -33,12 +35,20 @@ def create_user():
     require_admin(user)
 
     data = request.json or {}
-    username = data.get('username')
-    quota = int(data.get('quota', 0))
-    password = data.get('password')
+    username = data.get('username', '').strip()
+    quota = data.get('quota', 0)
+    password = data.get('password', '')
 
     if not username or not password:
         return jsonify({'error': 'username and password required'}), 400
+
+    # Validate quota is non-negative integer
+    try:
+        quota = int(quota)
+        if quota < 0:
+            return jsonify({'error': 'quota must be non-negative'}), 400
+    except (ValueError, TypeError):
+        return jsonify({'error': 'quota must be a valid integer'}), 400
 
     existing = User.query.get(username)
     if existing:
@@ -69,7 +79,12 @@ def update_quota(username):
         return jsonify({'error': f'cannot set quota for {target_user.role} users'}), 403
 
     data = request.json or {}
-    quota = int(data.get('quota', 0))
+    try:
+        quota = int(data.get('quota', 0))
+        if quota < 0:
+            return jsonify({'error': 'quota must be non-negative'}), 400
+    except (ValueError, TypeError):
+        return jsonify({'error': 'quota must be a valid integer'}), 400
 
     target_user.quota = quota
     db.session.commit()

@@ -31,8 +31,8 @@ def login():
     """Authenticate user and return JWT token."""
     try:
         data = request.json or {}
-        username = data.get('username')
-        password = data.get('password')
+        username = data.get('username', '').strip()
+        password = data.get('password', '')
 
         if not username or not password:
             logger.warning("Login attempt with missing credentials")
