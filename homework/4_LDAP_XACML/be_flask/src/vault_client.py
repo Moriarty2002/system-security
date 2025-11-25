@@ -1,21 +1,4 @@
-"""
-HashiCorp Vault Client Module
-
-This module provides a secure interface to interact with HashiCorp Vault
-for retrieving secrets, database credentials, and JWT signing keys.
-
-Security Features:
-- AppRole authentication with automatic token renewal
-- Caching of secrets with configurable TTL
-- Thread-safe operations
-- Automatic retry logic for transient failures
-- Vault required - no fallback mechanisms
-
-Usage:
-    vault_client = VaultClient()
-    secrets = vault_client.get_app_secrets()
-    db_config = vault_client.get_database_config()
-"""
+"""Vault client for secrets management with AppRole authentication."""
 
 import os
 import logging
