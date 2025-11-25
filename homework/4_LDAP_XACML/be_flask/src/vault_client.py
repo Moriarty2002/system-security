@@ -7,9 +7,9 @@ for retrieving secrets, database credentials, and JWT signing keys.
 Security Features:
 - AppRole authentication with automatic token renewal
 - Caching of secrets with configurable TTL
-- Graceful degradation with fallback to environment variables
 - Thread-safe operations
 - Automatic retry logic for transient failures
+- Vault required - no fallback mechanisms
 
 Usage:
     vault_client = VaultClient()
@@ -57,7 +57,7 @@ class VaultClient:
         if self._enabled:
             self._authenticate()
         else:
-            logger.warning("Vault is not enabled. Falling back to environment variables.")
+            raise RuntimeError("Vault is not enabled. Application requires Vault for secrets management.")
 
     def _check_vault_enabled(self) -> bool:
         """Check if Vault is properly configured and reachable.
@@ -186,14 +186,9 @@ class VaultClient:
                 'moderator_password': secrets.get('moderator_password'),
             }
         
-        # Fallback to environment variables
-        logger.warning("Using fallback environment variables for app secrets")
-        return {
-            'jwt_secret': os.environ.get('SECRET_KEY', 'dev-secret-key'),
-            'admin_password': os.environ.get('ADMIN_PASSWORD', 'admin'),
-            'alice_password': os.environ.get('ALICE_PASSWORD', 'alice'),
-            'moderator_password': os.environ.get('MOD_PASSWORD', 'moderator'),
-        }
+        # No fallback - Vault is required
+        logger.error("Failed to retrieve app secrets from Vault - no fallback available")
+        raise RuntimeError("Application secrets not available from Vault. Ensure Vault is configured and accessible.")
 
     def get_database_config(self) -> Dict[str, str]:
         """Get database configuration from Vault.
@@ -225,22 +220,9 @@ class VaultClient:
                 'url': f"postgresql://{username_encoded}:{password_encoded}@{host}:{port}/{database}"
             }
         
-        # Fallback to environment variables
-        logger.warning("Using fallback environment variables for database config")
-        username = os.environ.get('POSTGRES_USER', 'admin')
-        password = os.environ.get('POSTGRES_PASSWORD', 'password123')
-        database = os.environ.get('POSTGRES_DB', 'postgres_db')
-        host = os.environ.get('POSTGRES_HOST', 'db')
-        port = os.environ.get('POSTGRES_PORT', '5432')
-        
-        return {
-            'username': username,
-            'password': password,
-            'database': database,
-            'host': host,
-            'port': port,
-            'url': f"postgresql://{username}:{password}@{host}:{port}/{database}"
-        }
+        # No fallback - Vault is required
+        logger.error("Failed to retrieve database config from Vault - no fallback available")
+        raise RuntimeError("Database configuration not available from Vault. Ensure Vault is configured and accessible.")
 
     def invalidate_cache(self, path: Optional[str] = None) -> None:
         """Invalidate cached secrets.

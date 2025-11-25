@@ -17,17 +17,10 @@ class Config:
     def vault_client(self):
         """Lazy-load Vault client."""
         if self._vault_client is None:
-            try:
-                from .vault_client import get_vault_client
-                self._vault_client = get_vault_client()
-            except Exception as e:
-                logger.error(f"Failed to initialize Vault client: {e}")
-                # Create a dummy client that returns None
-                class DummyVaultClient:
-                    def get_app_secrets(self): return {}
-                    def get_database_config(self): return {}
-                    def is_available(self): return False
-                self._vault_client = DummyVaultClient()
+            from .vault_client import get_vault_client
+            self._vault_client = get_vault_client()
+            if not self._vault_client.is_available():
+                raise RuntimeError("Vault client is not available. Application requires Vault for configuration.")
         return self._vault_client
 
     @property
@@ -39,33 +32,25 @@ class Config:
 
     @property
     def SECRET_KEY(self) -> str:
-        """JWT signing key from Vault or environment fallback."""
-        return self.app_secrets.get('jwt_secret') or os.environ.get('SECRET_KEY', 'dev-secret-key')
+        """JWT signing key from Vault (required)."""
+        jwt_secret = self.app_secrets.get('jwt_secret')
+        if not jwt_secret:
+            raise RuntimeError("JWT secret not available from Vault")
+        return jwt_secret
 
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
-        """Database URI from Vault with fallback to environment/SQLite."""
+        """Database URI from Vault (required)."""
         if self._db_config is None:
             self._db_config = self.vault_client.get_database_config()
         
-        # First try Vault
         if self._db_config and self._db_config.get('url'):
             logger.info("Using database configuration from Vault")
             return self._db_config['url']
         
-        # Then try environment variable
-        database_url = os.environ.get('DATABASE_URL')
-        if database_url:
-            logger.info("Using DATABASE_URL from environment")
-            return database_url
-
-        # SQLite file as last resort for local testing
-        logger.warning("Using SQLite fallback - not recommended for production")
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        sqlite_path = os.path.join(base_dir, 'homework.db')
-        return f"sqlite:///{sqlite_path}"
+        raise RuntimeError("Database configuration not available from Vault")
 
     @property
     def STORAGE_DIR(self) -> str:

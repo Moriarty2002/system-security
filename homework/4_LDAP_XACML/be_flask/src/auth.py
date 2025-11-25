@@ -16,20 +16,22 @@ def get_jwt_secret() -> str:
     
     Returns:
         JWT signing secret
+        
+    Raises:
+        RuntimeError: If secret key is not available
     """
     try:
-        return current_app.config['SECRET_KEY']
-    except (RuntimeError, KeyError):
-        # Fallback if not in app context
-        logger.warning("Could not access Flask app context for SECRET_KEY")
-        import os
-        return os.environ.get('SECRET_KEY', 'dev-secret-key')
+        secret = current_app.config['SECRET_KEY']
+        if not secret:
+            raise RuntimeError("SECRET_KEY is empty")
+        return secret
+    except (RuntimeError, KeyError) as e:
+        logger.error(f"Could not access SECRET_KEY: {e}")
+        raise RuntimeError("JWT secret not available from Vault. Ensure Vault is configured and accessible.") from e
 
 
 def authenticate_user() -> Tuple[str, User]:
     """Authenticate request using Bearer JWT in Authorization header.
-
-    Falls back to X-User header only for quick local testing (not recommended).
 
     Returns:
         Tuple of (username, user_object)
@@ -39,32 +41,29 @@ def authenticate_user() -> Tuple[str, User]:
         403: Unknown user
     """
     auth = request.headers.get('Authorization')
-    token = None
-    if auth and auth.startswith('Bearer '):
-        token = auth.split(' ', 1)[1].strip()
-
-    username = None
-    if token:
-        try:
-            secret = get_jwt_secret()
-            payload = jwt.decode(
-                token,
-                secret,
-                algorithms=['HS256']
-            )
-            username = payload.get('sub')
-        except jwt.ExpiredSignatureError:
-            logger.warning("Attempt to use expired JWT token")
-            abort(401, description='token expired')
-        except Exception as e:
-            logger.warning(f"Invalid JWT token: {e}")
-            abort(401, description='invalid token')
-    else:
-        # fallback - NOT secure, only for local/demo convenience
-        username = request.headers.get('X-User')
+    if not auth or not auth.startswith('Bearer '):
+        logger.warning("Missing or invalid Authorization header")
+        abort(401, description='Missing authentication token')
+    
+    token = auth.split(' ', 1)[1].strip()
+    
+    try:
+        secret = get_jwt_secret()
+        payload = jwt.decode(
+            token,
+            secret,
+            algorithms=['HS256']
+        )
+        username = payload.get('sub')
+    except jwt.ExpiredSignatureError:
+        logger.warning("Attempt to use expired JWT token")
+        abort(401, description='token expired')
+    except Exception as e:
+        logger.warning(f"Invalid JWT token: {e}")
+        abort(401, description='invalid token')
 
     if not username:
-        abort(401, description='Missing authentication')
+        abort(401, description='Invalid token: missing username')
 
     user = User.query.get(username)
     if not user:
@@ -85,7 +84,7 @@ def create_token(username: str, expires_in: int = 3600) -> str:
         JWT token string
     """
     secret = get_jwt_secret()
-    exp = datetime.datetime.utcnow() + datetime.timedelta(seconds=expires_in)
+    exp = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=expires_in)
 
     # Get user role from database
     user = User.query.get(username)
