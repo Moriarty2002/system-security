@@ -2,15 +2,15 @@
 # This policy grants the Flask application read access to its secrets
 # stored in the shared Vault infrastructure.
 #
-# Secrets are namespaced under: secret/4_ldap_xacml/
+# Secrets are namespaced under: secret/mes_local_cloud/
 
 # Read application secrets (database credentials, JWT key, etc.)
-path "secret/data/4_ldap_xacml/app/*" {
+path "secret/data/mes_local_cloud/app/*" {
   capabilities = ["read", "list"]
 }
 
 # Read database credentials
-path "secret/data/4_ldap_xacml/database/*" {
+path "secret/data/mes_local_cloud/database/*" {
   capabilities = ["read"]
 }
 
@@ -25,11 +25,11 @@ path "auth/token/lookup-self" {
 }
 
 # Read AppRole role ID (for authentication)
-path "auth/approle/role/4_ldap_xacml-flask-app/role-id" {
+path "auth/approle/role/mes_local_cloud-flask-app/role-id" {
   capabilities = ["read"]
 }
 
 # Write to get AppRole secret ID (for authentication)
-path "auth/approle/role/4_ldap_xacml-flask-app/secret-id" {
+path "auth/approle/role/mes_local_cloud-flask-app/secret-id" {
   capabilities = ["update"]
 }

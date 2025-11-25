@@ -159,7 +159,7 @@ class VaultClient:
         Returns:
             Dictionary containing application secrets
         """
-        secrets = self._read_secret('4_ldap_xacml/app/flask')
+        secrets = self._read_secret('mes_local_cloud/app/flask')
         
         if secrets:
             return {
@@ -181,7 +181,7 @@ class VaultClient:
         """
         from urllib.parse import quote_plus
         
-        db_secrets = self._read_secret('4_ldap_xacml/database/postgres')
+        db_secrets = self._read_secret('mes_local_cloud/database/postgres')
         
         if db_secrets:
             username = db_secrets.get('username')

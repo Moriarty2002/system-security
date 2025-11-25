@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Insert seed users if they don't exist already
--- Passwords are managed by Vault at secret/4_ldap_xacml/app/flask
+-- Passwords are managed by Vault at secret/mes_local_cloud/app/flask
 
 INSERT INTO users (username, role, quota, password_hash)
 SELECT 'admin', 'admin', 0, 'scrypt:32768:8:1$HsHTdd40QlxGkm8G$9080b4490ee5427c1efed372b05905282b46470bdb5a91840a544d434ec60b2e357c00d8d7c3b67468fdc3df5fe873850f7fbed6522f90448876dfe42f2f6e1e'

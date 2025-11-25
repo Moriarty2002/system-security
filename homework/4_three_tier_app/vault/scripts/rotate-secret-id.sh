@@ -49,12 +49,12 @@ if [ "$SEAL_STATUS" = "true" ]; then
     exit 1
 fi
 
-echo "Generating new Secret ID for 4_ldap_xacml-flask-app AppRole..."
+echo "Generating new Secret ID for mes_local_cloud-flask-app AppRole..."
 echo ""
 
 # Generate new Secret ID
-NEW_SECRET_ID=$(vault_exec write -field=secret_id -f auth/approle/role/4_ldap_xacml-flask-app/secret-id)
-ROLE_ID=$(vault_exec read -field=role_id auth/approle/role/4_ldap_xacml-flask-app/role-id)
+NEW_SECRET_ID=$(vault_exec write -field=secret_id -f auth/approle/role/mes_local_cloud-flask-app/secret-id)
+ROLE_ID=$(vault_exec read -field=role_id auth/approle/role/mes_local_cloud-flask-app/role-id)
 
 echo "✅ New Secret ID generated"
 echo ""

@@ -8,7 +8,7 @@ VAULT_SECRET_ID="${APACHE_VAULT_SECRET_ID}"
 VAULT_AUTH_PATH="${APACHE_VAULT_AUTH_PATH:-approle-apache}"
 PKI_ENGINE="${PKI_ENGINE:-pki_apache}"
 PKI_ROLE="${PKI_ROLE:-apache-server}"
-KV_PATH="secret/data/4_ldap_xacml/certificates/apache"
+KV_PATH="secret/data/mes_local_cloud/certificates/apache"
 CERT_DIR="/usr/local/apache2/conf/extra/certs"
 
 echo "Authenticating with Vault using AppRole..."

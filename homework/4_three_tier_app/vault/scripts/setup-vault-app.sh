@@ -77,12 +77,12 @@ echo "==================================="
 echo ""
 
 echo "Creating app-policy for 4_three_tier_app..."
-docker exec -i -e VAULT_TOKEN="$VAULT_TOKEN" "$VAULT_CONTAINER" vault policy write 4_ldap_xacml-app - < "$SCRIPT_DIR/../policies/app-policy.hcl"
+docker exec -i -e VAULT_TOKEN="$VAULT_TOKEN" "$VAULT_CONTAINER" vault policy write mes_local_cloud-app - < "$SCRIPT_DIR/../policies/app-policy.hcl"
 echo "✅ Application policy created"
 
 echo ""
 echo "Creating admin-policy for 4_three_tier_app..."
-docker exec -i -e VAULT_TOKEN="$VAULT_TOKEN" "$VAULT_CONTAINER" vault policy write 4_ldap_xacml-admin - < "$SCRIPT_DIR/../policies/admin-policy.hcl"
+docker exec -i -e VAULT_TOKEN="$VAULT_TOKEN" "$VAULT_CONTAINER" vault policy write mes_local_cloud-admin - < "$SCRIPT_DIR/../policies/admin-policy.hcl"
 echo "✅ Admin policy created"
 
 # Create AppRole for Flask application
@@ -93,18 +93,18 @@ echo "==================================="
 echo ""
 
 echo "Creating AppRole for 4_three_tier_app Flask application..."
-vault_exec write auth/approle/role/4_ldap_xacml-flask-app \
-    token_policies="4_ldap_xacml-app" \
+vault_exec write auth/approle/role/mes_local_cloud-flask-app \
+    token_policies="mes_local_cloud-app" \
     token_ttl=1h \
     token_max_ttl=4h \
     bind_secret_id=true \
     secret_id_ttl=0
 
-echo "✅ AppRole '4_ldap_xacml-flask-app' created"
+echo "✅ AppRole 'mes_local_cloud-flask-app' created"
 
 # Get Role ID and Secret ID
-ROLE_ID=$(vault_exec read -field=role_id auth/approle/role/4_ldap_xacml-flask-app/role-id)
-SECRET_ID=$(vault_exec write -field=secret_id -f auth/approle/role/4_ldap_xacml-flask-app/secret-id)
+ROLE_ID=$(vault_exec read -field=role_id auth/approle/role/mes_local_cloud-flask-app/role-id)
+SECRET_ID=$(vault_exec write -field=secret_id -f auth/approle/role/mes_local_cloud-flask-app/secret-id)
 
 # Save AppRole credentials
 cat > "$APP_CREDENTIALS_FILE" <<EOF
@@ -138,23 +138,23 @@ DB_PASSWORD="devpass123_NeverUseInProduction"
 echo "Using fixed development database password..."
 
 # Store application secrets in namespaced path
-vault_exec kv put secret/4_ldap_xacml/app/flask \
+vault_exec kv put secret/mes_local_cloud/app/flask \
     jwt_secret="$JWT_SECRET" \
     admin_password="admin" \
     alice_password="alice" \
     moderator_password="moderator"
 
-echo "✅ Application secrets stored at secret/4_ldap_xacml/app/flask"
+echo "✅ Application secrets stored at secret/mes_local_cloud/app/flask"
 
 # Store database secrets in namespaced path
-vault_exec kv put secret/4_ldap_xacml/database/postgres \
+vault_exec kv put secret/mes_local_cloud/database/postgres \
     username="admin" \
     password="$DB_PASSWORD" \
     database="postgres_db" \
     host="db" \
     port="5432"
 
-echo "✅ Database secrets stored at secret/4_ldap_xacml/database/postgres"
+echo "✅ Database secrets stored at secret/mes_local_cloud/database/postgres"
 
 # Generate database init script with hashed passwords
 echo ""
@@ -168,9 +168,9 @@ hash_password() {
 
 # Get passwords from Vault and hash them
 echo "Retrieving and hashing passwords..."
-ADMIN_PASSWORD=$(vault_exec kv get -field=admin_password secret/4_ldap_xacml/app/flask)
-ALICE_PASSWORD=$(vault_exec kv get -field=alice_password secret/4_ldap_xacml/app/flask)
-MOD_PASSWORD=$(vault_exec kv get -field=moderator_password secret/4_ldap_xacml/app/flask)
+ADMIN_PASSWORD=$(vault_exec kv get -field=admin_password secret/mes_local_cloud/app/flask)
+ALICE_PASSWORD=$(vault_exec kv get -field=alice_password secret/mes_local_cloud/app/flask)
+MOD_PASSWORD=$(vault_exec kv get -field=moderator_password secret/mes_local_cloud/app/flask)
 
 ADMIN_PWD_HASH=$(hash_password "$ADMIN_PASSWORD")
 ALICE_PWD_HASH=$(hash_password "$ALICE_PASSWORD")
@@ -194,7 +194,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Insert seed users if they don't exist already
--- Passwords are managed by Vault at secret/4_ldap_xacml/app/flask
+-- Passwords are managed by Vault at secret/mes_local_cloud/app/flask
 
 INSERT INTO users (username, role, quota, password_hash)
 SELECT 'admin', 'admin', 0, '${ADMIN_PWD_HASH}'
@@ -247,9 +247,9 @@ echo "==================================="
 echo ""
 echo "📝 Summary:"
 echo "   - Connected to shared Vault at: $VAULT_ADDR"
-echo "   - Application policies created (4_ldap_xacml-app, 4_ldap_xacml-admin)"
-echo "   - AppRole '4_ldap_xacml-flask-app' created"
-echo "   - Secrets stored at: secret/4_ldap_xacml/"
+echo "   - Application policies created (mes_local_cloud-app, mes_local_cloud-admin)"
+echo "   - AppRole 'mes_local_cloud-flask-app' created"
+echo "   - Secrets stored at: secret/mes_local_cloud/"
 echo ""
 echo "📁 Important files created:"
 echo "   - $APP_CREDENTIALS_FILE (AppRole credentials)"

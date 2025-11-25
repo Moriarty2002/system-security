@@ -72,7 +72,7 @@ cd ../..
 This script:
 - Creates namespaced policies for this application
 - Generates AppRole credentials
-- Stores secrets at `secret/4_ldap_xacml/`
+- Stores secrets at `secret/mes_local_cloud/`
 - Creates database initialization script with hashed passwords
 
 ### Step 3: Reset Database (First Time Setup)
