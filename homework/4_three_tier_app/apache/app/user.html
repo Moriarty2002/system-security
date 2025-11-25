@@ -18,42 +18,91 @@
   </header>
 
   <main class="container">
-    <section class="section">
-      <form id="uploadForm">
-        <input type="file" id="fileInput" class="input" required>
-        <input type="text" id="uploadPath" placeholder="Upload to path (optional)" class="input" style="margin-left: 10px; width: 200px;">
-        <button type="submit" class="btn btn-primary">Upload</button>
-      </form>
+    <section class="section upload-section">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="margin: 0;">📤 Upload Files</h3>
+        <div id="currentPathDisplay" class="current-path-badge">📍 Root</div>
+      </div>
+      <div id="dropZone" class="drop-zone">
+        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="17 8 12 3 7 8"></polyline>
+          <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+        <p class="drop-zone-text">Drag & drop files here or click to browse</p>
+        <p class="drop-zone-hint" id="dropZoneHint">Files will be uploaded to: Root</p>
+        <input type="file" id="fileInput" class="file-input">
+      </div>
+      <div id="uploadBtnContainer" style="margin-top: 12px; text-align: center; display: none;">
+        <button id="uploadBtn" class="btn btn-primary">📤 Upload File</button>
+      </div>
       
-      <form id="mkdirForm" style="margin-top: 10px;">
-        <input type="text" id="dirName" placeholder="New directory name" class="input" required>
-        <button type="submit" class="btn btn-secondary">Create Directory</button>
-      </form>
+      <div class="actions-row">
+        <form id="mkdirForm" class="mkdir-form">
+          <label for="dirName" class="form-label" id="mkdirLabel">Create new folder in: Root</label>
+          <div class="form-input-group">
+            <input type="text" id="dirName" placeholder="Enter folder name" class="input folder-input" required>
+            <button type="submit" class="btn btn-secondary">📁 Create Folder</button>
+          </div>
+        </form>
+      </div>
       
-      <div id="usage" class="muted" style="margin-top:8px"></div>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-        <div>
-          <h4 style="margin: 0;">Your Files</h4>
-          <div id="breadcrumb" style="margin-top: 5px; font-size: 14px;"></div>
+      <div class="usage-bar">
+        <div class="usage-info">
+          <span id="usage" class="usage-text"></span>
+          <span id="usagePercent" class="usage-percent"></span>
         </div>
-        <div>
-          <button id="showBinBtn" class="btn btn-secondary" style="margin-right: 10px;">🗑️ Bin</button>
-          <div id="unitSelectorContainer">
-            <label for="unitSelector" style="margin-right: 0.5rem; font-size: 14px;">Display unit:</label>
+        <div class="progress-bar">
+          <div id="usageProgress" class="progress-fill"></div>
+        </div>
+      </div>
+      <div class="files-header">
+        <div style="flex: 1;">
+          <div class="navigation-bar">
+            <button id="backBtn" class="btn btn-nav" style="display: none;" title="Go back to parent folder">⬅️ Back</button>
+            <button id="homeBtn" class="btn btn-nav" style="display: none;" title="Go to root folder">🏠 Home</button>
+          </div>
+          <div id="breadcrumb" class="breadcrumb"></div>
+        </div>
+        <div class="files-controls">
+          <input type="text" id="searchInput" placeholder="🔍 Search files..." class="input search-input">
+          <button id="showBinBtn" class="btn btn-secondary">🗑️ Bin</button>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label for="unitSelector" class="muted" style="font-size: 13px;">Unit:</label>
+            <div id="unitSelectorContainer"></div>
           </div>
         </div>
       </div>
       <div id="filesView">
-        <table id="filesTable" class="table" aria-live="polite">
-          <thead><tr><th>Name</th><th>Size</th><th>Actions</th></tr></thead>
+        <div id="emptyState" class="empty-state" style="display: none;">
+          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <p class="empty-text">No files yet</p>
+          <p class="empty-hint">Upload your first file to get started</p>
+        </div>
+        <table id="filesTable" class="table files-table" aria-live="polite">
+          <thead><tr><th>Name</th><th>Size</th><th style="text-align: right;">Actions</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
       <div id="binView" style="display: none;">
-        <h4>Recycle Bin</h4>
-        <p class="muted">Items are kept for 5 days before permanent deletion</p>
+        <div class="bin-header">
+          <div>
+            <h3 style="margin: 0;">🗑️ Recycle Bin</h3>
+            <p class="muted" style="margin-top: 4px;">Items are kept for 5 days before permanent deletion</p>
+          </div>
+        </div>
+        <div id="binEmptyState" class="empty-state" style="display: none;">
+          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+          <p class="empty-text">Recycle bin is empty</p>
+          <p class="empty-hint">Deleted items will appear here</p>
+        </div>
         <table id="binTable" class="table">
-          <thead><tr><th>Name</th><th>Type</th><th>Size</th><th>Deleted</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Name</th><th>Type</th><th>Size</th><th>Deleted</th><th style="text-align: right;">Actions</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -68,10 +117,183 @@
     document.getElementById('themeToggleContainer').appendChild(createThemeToggle());
 
     // Add unit selector
-    document.getElementById('unitSelectorContainer').appendChild(createUnitSelector(() => listFiles()));
+    document.getElementById('unitSelectorContainer').appendChild(createUnitSelector(() => {
+      listFiles();
+      updateUsageDisplay();
+    }));
 
     let currentPath = '';
     let currentView = 'files'; // 'files' or 'bin'
+    let allFiles = []; // Store all files for search
+    let currentQuota = 0;
+    let currentUsage = 0;
+
+    // Drag and drop functionality
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+
+    dropZone.addEventListener('click', (e) => {
+      // Prevent triggering if clicking the upload button
+      if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length > 0) {
+        const fileName = fileInput.files[0].name;
+        document.querySelector('.drop-zone-text').textContent = `Selected: ${fileName}`;
+        document.getElementById('uploadBtnContainer').style.display = 'block';
+      } else {
+        document.querySelector('.drop-zone-text').textContent = 'Drag & drop files here or click to browse';
+        document.getElementById('uploadBtnContainer').style.display = 'none';
+      }
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        fileInput.files = files;
+        const fileName = files[0].name;
+        document.querySelector('.drop-zone-text').textContent = `Selected: ${fileName}`;
+        document.getElementById('uploadBtnContainer').style.display = 'block';
+      }
+    });
+
+    // Search functionality
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase();
+      filterFiles(query);
+    });
+
+    // Keyboard navigation for file list
+    document.addEventListener('keydown', (e) => {
+      // Backspace to go back (if not in an input field)
+      if (e.key === 'Backspace' && currentPath && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+        e.preventDefault();
+        const parts = currentPath.split('/');
+        parts.pop();
+        navigateToPath(parts.join('/'));
+        return;
+      }
+      
+      const folderRows = Array.from(document.querySelectorAll('.folder-row'));
+      if (folderRows.length === 0) return;
+      
+      const selected = document.querySelector('.folder-row.selected');
+      let currentIndex = selected ? folderRows.indexOf(selected) : -1;
+      
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        currentIndex = Math.min(currentIndex + 1, folderRows.length - 1);
+        folderRows.forEach(r => r.classList.remove('selected'));
+        folderRows[currentIndex].classList.add('selected');
+        folderRows[currentIndex].focus();
+        folderRows[currentIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        currentIndex = Math.max(currentIndex - 1, 0);
+        folderRows.forEach(r => r.classList.remove('selected'));
+        folderRows[currentIndex].classList.add('selected');
+        folderRows[currentIndex].focus();
+        folderRows[currentIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    });
+
+    // Upload button click handler
+    document.getElementById('uploadBtn').addEventListener('click', async () => {
+      const file = document.getElementById('fileInput').files[0];
+      if(!file) {
+        alert('Please select a file first');
+        return;
+      }
+
+      const form = new FormData();
+      form.append('file', file);
+      if (currentPath) {
+        form.append('path', currentPath);
+        console.log('Uploading to path:', currentPath);
+      } else {
+        console.log('Uploading to root');
+      }
+      
+      const uploadBtn = document.getElementById('uploadBtn');
+      const originalText = uploadBtn.innerHTML;
+      uploadBtn.innerHTML = '⏳ Uploading...';
+      uploadBtn.disabled = true;
+      
+      try {
+        const r = await fetch('/api/upload', {
+          method: 'POST',
+          body: form,
+          headers: headers()
+        });
+
+        if(!r.ok){
+          const t = await r.json().catch(() => ({error: 'Upload failed'}));
+          console.error('Upload error:', t);
+          uploadBtn.innerHTML = originalText;
+          uploadBtn.disabled = false;
+          alert('Upload failed: ' + (t.error || r.status));
+          return;
+        }
+        
+        alert('File uploaded successfully');
+        // Clear file input and reset drop zone
+        document.getElementById('fileInput').value = '';
+        document.querySelector('.drop-zone-text').textContent = 'Drag & drop files here or click to browse';
+        document.getElementById('uploadBtnContainer').style.display = 'none';
+        uploadBtn.innerHTML = originalText;
+        uploadBtn.disabled = false;
+        await listFiles();
+      } catch (error) {
+        uploadBtn.innerHTML = originalText;
+        uploadBtn.disabled = false;
+        console.error('Upload exception:', error);
+        alert('Upload failed: ' + error.message);
+      }
+    });
+
+    function filterFiles(query) {
+      const tbody = document.querySelector('#filesTable tbody');
+      const rows = tbody.querySelectorAll('tr');
+      
+      rows.forEach(row => {
+        const name = row.querySelector('td:first-child').textContent.toLowerCase();
+        if (name.includes(query)) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+
+    function updateUsageDisplay() {
+      const percent = currentQuota > 0 ? (currentUsage / currentQuota * 100) : 0;
+      document.getElementById('usage').textContent = `${formatBytes(currentUsage)} / ${formatBytes(currentQuota)}`;
+      document.getElementById('usagePercent').textContent = `${percent.toFixed(1)}%`;
+      document.getElementById('usageProgress').style.width = `${Math.min(percent, 100)}%`;
+      
+      // Color coding
+      const progressBar = document.getElementById('usageProgress');
+      if (percent >= 90) {
+        progressBar.style.backgroundColor = 'var(--danger)';
+      } else if (percent >= 75) {
+        progressBar.style.backgroundColor = 'var(--warning)';
+      } else {
+        progressBar.style.backgroundColor = 'var(--success)';
+      }
+    }
 
     async function load(){
       const me = await whoami();
@@ -99,16 +321,16 @@
     function updateBreadcrumb() {
       const breadcrumb = document.getElementById('breadcrumb');
       if (!currentPath) {
-        breadcrumb.innerHTML = '<span class="muted">Root</span>';
+        breadcrumb.innerHTML = '<span class="breadcrumb-item">🏠 Root</span>';
         return;
       }
       
       const parts = currentPath.split('/');
-      let html = '<a href="#" onclick="navigateToPath(\'\')">Root</a>';
+      let html = '<a href="#" onclick="navigateToPath(\'\')" class="breadcrumb-link">🏠 Root</a>';
       let path = '';
       parts.forEach((part, index) => {
         path += (path ? '/' : '') + part;
-        html += ' / <a href="#" onclick="navigateToPath(\'' + path + '\')">' + part + '</a>';
+        html += ' <span class="breadcrumb-separator">›</span> <a href="#" onclick="navigateToPath(\'' + path + '\')" class="breadcrumb-link">' + part + '</a>';
       });
       breadcrumb.innerHTML = html;
     }
@@ -116,7 +338,33 @@
     function navigateToPath(path) {
       currentPath = path;
       updateBreadcrumb();
+      updatePathDisplays();
       listFiles();
+    }
+
+    function updatePathDisplays() {
+      const displayPath = currentPath || 'Root';
+      const fullPath = currentPath ? `📁 ${currentPath}` : '📍 Root';
+      
+      // Update current path badge
+      document.getElementById('currentPathDisplay').textContent = fullPath;
+      
+      // Update drop zone hint
+      document.getElementById('dropZoneHint').textContent = `Files will be uploaded to: ${displayPath}`;
+      
+      // Update mkdir label
+      document.getElementById('mkdirLabel').textContent = `Create new folder in: ${displayPath}`;
+      
+      // Show/hide navigation buttons
+      const backBtn = document.getElementById('backBtn');
+      const homeBtn = document.getElementById('homeBtn');
+      if (currentPath) {
+        backBtn.style.display = 'inline-flex';
+        homeBtn.style.display = 'inline-flex';
+      } else {
+        backBtn.style.display = 'none';
+        homeBtn.style.display = 'none';
+      }
     }
 
     // Make navigateToPath globally available for onclick handlers
@@ -127,15 +375,27 @@
       if(!r.ok) return;
       const j = await r.json();
       const tb = document.querySelector('#binTable tbody');
+      const binTable = document.getElementById('binTable');
+      const binEmptyState = document.getElementById('binEmptyState');
       tb.innerHTML = '';
+
+      if (j.bin_items.length === 0) {
+        binTable.style.display = 'none';
+        binEmptyState.style.display = 'flex';
+        return;
+      }
+
+      binTable.style.display = 'table';
+      binEmptyState.style.display = 'none';
 
       j.bin_items.forEach(item => {
         const tr = document.createElement('tr');
         const deletedDate = new Date(item.deleted_at * 1000).toLocaleString();
-        const restoreBtn = `<button data-restore="${item.id}" class="btn btn-secondary">Restore</button>`;
-        const deleteBtn = `<button data-delete="${item.id}" class="btn btn-danger">Delete Forever</button>`;
+        const typeIcon = item.item_type === 'directory' ? '📁' : '📄';
+        const restoreBtn = `<button data-restore="${item.id}" class="btn btn-secondary btn-sm">♻️ Restore</button>`;
+        const deleteBtn = `<button data-delete="${item.id}" class="btn btn-danger btn-sm">🗑️ Delete</button>`;
         
-        tr.innerHTML = `<td>${item.original_path}</td><td>${item.item_type}</td><td>${formatBytes(item.size)}</td><td>${deletedDate}</td><td>${restoreBtn} ${deleteBtn}</td>`;
+        tr.innerHTML = `<td>${typeIcon} ${item.original_path}</td><td>${item.item_type}</td><td>${formatBytes(item.size)}</td><td class="muted">${deletedDate}</td><td style="text-align: right;"><div class="btn-group">${restoreBtn} ${deleteBtn}</div></td>`;
         tb.appendChild(tr);
       });
 
@@ -205,27 +465,110 @@
       if(!r.ok) return;
       const j = await r.json();
       const tb = document.querySelector('#filesTable tbody');
+      const filesTable = document.getElementById('filesTable');
+      const emptyState = document.getElementById('emptyState');
       tb.innerHTML = '';
+      allFiles = j.files;
+      currentQuota = j.quota;
+      currentUsage = j.usage;
+
+      if (j.files.length === 0 && !currentPath) {
+        filesTable.style.display = 'none';
+        emptyState.style.display = 'flex';
+        return;
+      } else {
+        filesTable.style.display = 'table';
+        emptyState.style.display = 'none';
+      }
+
+      // Add parent folder row if we're in a subdirectory
+      if (currentPath) {
+        const tr = document.createElement('tr');
+        tr.classList.add('parent-folder-row');
+        tr.style.cursor = 'pointer';
+        tr.title = 'Go to parent folder';
+        const parts = currentPath.split('/');
+        parts.pop();
+        const parentPath = parts.join('/');
+        tr.innerHTML = `<td colspan="2"><span class="file-name parent-folder">⬆️ <strong>.. (Go to parent folder)</strong></span></td><td></td>`;
+        tb.appendChild(tr);
+        
+        tr.addEventListener('click', () => {
+          navigateToPath(parentPath);
+        });
+        
+        tr.addEventListener('dblclick', () => {
+          navigateToPath(parentPath);
+        });
+      }
 
       j.files.forEach(f => {
         const tr = document.createElement('tr');
         let nameDisplay = f.name;
+        let fileIcon = '📄';
         let actions = '';
         
         if (f.type === 'directory') {
-          nameDisplay = '📁 ' + f.name;
-          actions = `<button onclick="navigateToPath('${currentPath ? currentPath + '/' + f.name : f.name}')" class="btn btn-secondary">Open</button>`;
+          fileIcon = '📁';
+          const folderPath = currentPath ? currentPath + '/' + f.name : f.name;
+          nameDisplay = `<span class="file-name folder-name">${fileIcon} ${f.name}</span>`;
+          tr.classList.add('folder-row');
+          tr.setAttribute('data-folder-path', folderPath);
+          tr.style.cursor = 'pointer';
+          tr.title = 'Double-click or press Enter to open';
+          actions = '';
         } else {
-          actions = `<button data-download="${encodeURIComponent(f.name)}" class="btn">Download</button>`;
+          // Determine file icon based on extension
+          const ext = f.name.split('.').pop().toLowerCase();
+          if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext)) fileIcon = '🖼️';
+          else if (['mp4', 'avi', 'mov', 'mkv'].includes(ext)) fileIcon = '🎬';
+          else if (['mp3', 'wav', 'ogg', 'flac'].includes(ext)) fileIcon = '🎵';
+          else if (['pdf'].includes(ext)) fileIcon = '📕';
+          else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) fileIcon = '📦';
+          else if (['doc', 'docx', 'txt', 'md'].includes(ext)) fileIcon = '📝';
+          else if (['xls', 'xlsx', 'csv'].includes(ext)) fileIcon = '📊';
+          else if (['js', 'py', 'java', 'cpp', 'html', 'css'].includes(ext)) fileIcon = '💻';
+          
+          nameDisplay = `<span class="file-name">${fileIcon} ${f.name}</span>`;
+          actions = `<button data-download="${encodeURIComponent(f.name)}" class="btn btn-sm">⬇️ Download</button>`;
         }
         
-        actions += ` <button data-name="${f.name}" data-type="${f.type}" class="btn btn-danger">Delete</button>`;
+        actions += ` <button data-name="${f.name}" data-type="${f.type}" class="btn btn-danger btn-sm">🗑️ Delete</button>`;
         
-        tr.innerHTML = `<td>${nameDisplay}</td><td>${f.type === 'directory' ? '-' : formatBytes(f.size)}</td><td>${actions}</td>`;
+        tr.innerHTML = `<td>${nameDisplay}</td><td class="muted">${f.type === 'directory' ? '-' : formatBytes(f.size)}</td><td style="text-align: right;"><div class="btn-group">${actions}</div></td>`;
         tb.appendChild(tr);
       });
 
-      document.getElementById('usage').textContent = `Usage: ${formatBytes(j.usage)} / Quota: ${formatBytes(j.quota)}`;
+      updateUsageDisplay();
+
+      // Wire folder row navigation (double-click or Enter key)
+      document.querySelectorAll('.folder-row').forEach(row => {
+        const folderPath = row.getAttribute('data-folder-path');
+        
+        // Double-click to open
+        row.addEventListener('dblclick', () => {
+          navigateToPath(folderPath);
+        });
+        
+        // Single click to select/focus
+        row.addEventListener('click', (e) => {
+          // Don't navigate if clicking delete button
+          if (e.target.closest('.btn-danger')) return;
+          
+          // Remove previous selection
+          document.querySelectorAll('.folder-row').forEach(r => r.classList.remove('selected'));
+          row.classList.add('selected');
+          row.focus();
+        });
+        
+        // Make row focusable and handle Enter key
+        row.setAttribute('tabindex', '0');
+        row.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            navigateToPath(folderPath);
+          }
+        });
+      });
 
       // Wire download buttons
       document.querySelectorAll('button[data-download]').forEach(b =>
@@ -261,34 +604,6 @@
       );
     }
 
-    document.getElementById('uploadForm').addEventListener('submit', async e => {
-      e.preventDefault();
-      const file = document.getElementById('fileInput').files[0];
-      if(!file) return alert('choose a file');
-
-      const form = new FormData();
-      form.append('file', file);
-      const uploadPath = document.getElementById('uploadPath').value.trim();
-      if (uploadPath) {
-        form.append('path', uploadPath);
-      }
-      const r = await fetch('/api/upload', {
-        method: 'POST',
-        body: form,
-        headers: headers()
-      });
-
-      if(!r.ok){
-        const t = await r.json().catch(() => ({error: 'fail'}));
-        return alert('upload failed: ' + (t.error || r.status));
-      }
-      alert('File uploaded successfully');
-      // Clear file input
-      document.getElementById('fileInput').value = '';
-      document.getElementById('uploadPath').value = '';
-      await listFiles();
-    });
-
     document.getElementById('mkdirForm').addEventListener('submit', async e => {
       e.preventDefault();
       const dirName = document.getElementById('dirName').value.trim();
@@ -318,6 +633,17 @@
     document.getElementById('logout').addEventListener('click', () => {
       removeToken();
       location.href = 'index.html';
+    });
+
+    document.getElementById('backBtn').addEventListener('click', () => {
+      if (!currentPath) return;
+      const parts = currentPath.split('/');
+      parts.pop();
+      navigateToPath(parts.join('/'));
+    });
+
+    document.getElementById('homeBtn').addEventListener('click', () => {
+      navigateToPath('');
     });
 
     load();
