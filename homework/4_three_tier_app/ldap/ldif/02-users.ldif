@@ -1,0 +1,50 @@
+# Default users for MES Cloud
+# Passwords are SSHA hashed (username = password)
+
+# Admin user (password: admin)
+dn: uid=admin,ou=users,dc=cloud,dc=mes
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: admin
+sn: Administrator
+givenName: Admin
+cn: Admin Administrator
+displayName: Admin
+uidNumber: 10000
+gidNumber: 10000
+userPassword: {SSHA}BT/9zFrNtrwB+Pa5ZuZPq8N9+V1V0WCL
+homeDirectory: /home/admin
+loginShell: /bin/bash
+
+# Alice user (password: alice)
+dn: uid=alice,ou=users,dc=cloud,dc=mes
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: alice
+sn: Smith
+givenName: Alice
+cn: Alice Smith
+displayName: Alice
+uidNumber: 10001
+gidNumber: 10001
+userPassword: {SSHA}dGHB2hfz61Zh6RhiD3V4Qjr5uMf9pxTs
+homeDirectory: /home/alice
+loginShell: /bin/bash
+
+# Moderator user (password: moderator)
+dn: uid=moderator,ou=users,dc=cloud,dc=mes
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: moderator
+sn: Moderator
+givenName: Mod
+cn: Mod Moderator
+displayName: Moderator
+uidNumber: 10002
+gidNumber: 10002
+userPassword: {SSHA}BXBfDeOE2cxbmTlqfwlN1f87tEQ+lCJR
+homeDirectory: /home/moderator
+loginShell: /bin/bash

@@ -69,11 +69,21 @@ def create_app(config_object=None) -> Flask:
         print(f"❌ Failed to initialize MinIO client: {e}")
         raise
 
+    # Initialize LDAP client
+    try:
+        app.config['LDAP_CLIENT'] = config.get_ldap_client()
+    except Exception as e:
+        print(f"❌ Failed to initialize LDAP client: {e}")
+        raise
+
     # Setup logging
     setup_logging(app)
     
     # Log MinIO initialization status
     app.logger.info("✅ MinIO client initialized - using object storage")
+    
+    # Log LDAP initialization status
+    app.logger.info("✅ LDAP client initialized - using LDAP authentication")
     
     # Log Vault status and database URI
     if hasattr(config, 'vault_client'):

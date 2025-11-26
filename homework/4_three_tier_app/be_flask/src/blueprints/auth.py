@@ -1,8 +1,8 @@
 import logging
 from flask import Blueprint, jsonify, request
 
-from ..auth import authenticate_user, create_token, verify_password, hash_password
-from ..models import db, User
+from ..auth import authenticate_user, create_token, authenticate_ldap
+from ..models import db, LdapUser
 
 logger = logging.getLogger(__name__)
 auth_bp = Blueprint('auth', __name__)
@@ -15,11 +15,11 @@ def whoami():
     This endpoint helps the front-end adapt UI to the user's role.
     """
     try:
-        username, user = authenticate_user()
+        username, user, role = authenticate_user()
         logger.info(f"User {username} requested their profile information")
         return jsonify({
             'username': username,
-            'role': getattr(user, 'role', 'user')
+            'role': role
         })
     except Exception as e:
         logger.error(f"Error in whoami endpoint: {str(e)}")
@@ -38,17 +38,16 @@ def login():
             logger.warning("Login attempt with missing credentials")
             return jsonify({'error': 'username and password required'}), 400
 
-        user = User.query.get(username)
-        if not user:
-            logger.warning(f"Login attempt for non-existent user: {username}")
-            return jsonify({'error': 'invalid credentials'}), 401
-
-        if not verify_password(user.password_hash, password):
+        # Authenticate against LDAP
+        success, role, error = authenticate_ldap(username, password)
+        
+        if not success:
             logger.warning(f"Failed login attempt for user: {username}")
-            return jsonify({'error': 'invalid credentials'}), 401
+            return jsonify({'error': error or 'invalid credentials'}), 401
 
-        token = create_token(user.username, expires_in=3600)
-        logger.info(f"Successful login for user: {username}")
+        # Create JWT token with role from LDAP
+        token = create_token(username, role, expires_in=3600)
+        logger.info(f"Successful login for user: {username} with role: {role}")
         return jsonify({
             'access_token': token,
             'token_type': 'Bearer',

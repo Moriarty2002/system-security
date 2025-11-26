@@ -1,6 +1,14 @@
 # Use an official Python runtime as a parent image
 FROM python:3.10-slim
 
+# Install system dependencies required for python-ldap
+RUN apt-get update && apt-get install -y \
+    libldap2-dev \
+    libsasl2-dev \
+    ldap-utils \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
 # Set the working directory in the container
 WORKDIR /app
 

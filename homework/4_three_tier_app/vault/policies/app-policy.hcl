@@ -19,6 +19,11 @@ path "secret/data/mes_local_cloud/minio" {
   capabilities = ["read"]
 }
 
+# Read LDAP authentication configuration
+path "secret/data/mes_local_cloud/ldap" {
+  capabilities = ["read"]
+}
+
 # Allow the app to renew its own token
 path "auth/token/renew-self" {
   capabilities = ["update"]

@@ -66,6 +66,12 @@ if [ "$RESET" = true ]; then
     rm -f vault/scripts/vault-keys.json
     rm -f vault/scripts/approle-credentials.txt
     
+    echo "Removing LDAP and database volumes..."
+    docker volume rm 4_three_tier_app_pg_data 2>/dev/null || true
+    docker volume rm 4_three_tier_app_ldap_data 2>/dev/null || true
+    docker volume rm 4_three_tier_app_ldap_config 2>/dev/null || true
+    docker volume rm 4_three_tier_app_minio_data 2>/dev/null || true
+    
     echo "✅ Reset complete"
     echo ""
 fi
@@ -146,6 +152,11 @@ echo ""
 
 cd vault/scripts
 ./setup-vault-app.sh
+
+# Configure LDAP secrets
+echo ""
+echo "Configuring LDAP authentication in Vault..."
+./setup-vault-ldap.sh
 cd ../..
 
 echo ""
@@ -222,6 +233,18 @@ while [ $RETRY -lt $MAX_RETRIES ]; do
     sleep 2
 done
 
+# Wait for LDAP to be healthy
+RETRY=0
+while [ $RETRY -lt $MAX_RETRIES ]; do
+    if docker compose ps | grep ldap_server | grep -q "healthy"; then
+        echo "✅ LDAP server is healthy"
+        break
+    fi
+    RETRY=$((RETRY+1))
+    echo "Waiting for LDAP... ($RETRY/$MAX_RETRIES)"
+    sleep 2
+done
+
 # Check if backend is failing due to authentication error and fix it
 if docker compose logs backend 2>&1 | grep -q "password authentication failed"; then
     echo "⚠️  Detected password authentication error - synchronizing database password..."
@@ -248,6 +271,14 @@ else
     echo "    Check logs: docker compose logs backend"
 fi
 
+# Check LDAP integration
+if docker compose logs backend 2>&1 | grep -q "LDAP client initialized"; then
+    echo "✅ Backend successfully connected to LDAP"
+else
+    echo "⚠️  Backend may not be connected to LDAP"
+    echo "    Check logs: docker compose logs backend"
+fi
+
 echo ""
 echo "==========================================="
 echo "🎉 Setup Complete!"
@@ -260,11 +291,13 @@ echo "🌐 Access Points:"
 echo "   - Application:  http://localhost or https://localhost"
 echo "   - Vault UI:     http://localhost:8200"
 echo "   - Backend API:  http://localhost:5000"
+echo "   - MinIO Console: http://localhost:9001"
 echo ""
-echo "👤 Default Users (passwords from Vault):"
-echo "   - admin / admin123"
-echo "   - alice / alice123"
-echo "   - moderator / moderator123"
+echo "👤 Default LDAP Users:"
+echo "   - admin / admin (admin role)"
+echo "   - alice / alice (user role)"
+echo "   - moderator / moderator (moderator role)"
+echo "   ⚠️  Change these passwords in production!"
 echo ""
 echo "🔑 Vault Access:"
 VAULT_TOKEN=$(jq -r '.root_token' ../vault-infrastructure/scripts/vault-keys.json 2>/dev/null || echo "N/A")
@@ -278,10 +311,12 @@ echo "   - Stop services:    docker compose down"
 echo "   - Stop Vault:       cd ../vault-infrastructure && docker compose down"
 echo "   - Restart backend:  docker compose restart backend"
 echo "   - Rotate secrets:   cd vault/scripts && ./rotate-secret-id.sh"
-echo "   - Unseal Vault:     cd vault/scripts && ./unseal-vault.sh"
+echo "   - LDAP setup:       cd ldap && ./setup-ldap.sh"
 echo ""
 echo "📖 Documentation:"
 echo "   - README.md - Quick start guide"
+echo "   - LDAP_INTEGRATION.md - LDAP authentication guide"
+echo "   - ldap/LDIF_CUSTOMIZATION_GUIDE.md - Customize LDAP users"
 echo "   - VAULT_INTEGRATION.md - Detailed Vault documentation"
 echo ""
 echo "⚠️  IMPORTANT:"

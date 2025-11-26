@@ -1,10 +1,12 @@
-# Secure File Storage Service with HashiCorp Vault
+# Secure File Storage Service with HashiCorp Vault and LDAP Authentication
 
-A production-ready web application with enterprise-grade secrets management using HashiCorp Vault.
+A production-ready web application with enterprise-grade secrets management using HashiCorp Vault and centralized LDAP authentication.
 
 ## 🔐 Security Features
 
-- **HashiCorp Vault Integration**: All secrets managed by Vault
+- **LDAP Authentication**: Centralized user authentication via OpenLDAP
+- **No Password Storage**: Application never stores user passwords
+- **HashiCorp Vault Integration**: All secrets (including LDAP credentials) managed by Vault
 - **No Hardcoded Credentials**: Zero secrets in code or config files
 - **AppRole Authentication**: Secure machine-to-machine authentication
 - **JWT Token Security**: Signing keys rotated and managed by Vault
@@ -12,11 +14,12 @@ A production-ready web application with enterprise-grade secrets management usin
 - **MinIO Security**: Dedicated application user with bucket-only access
 - **Docker Secrets**: Sensitive data passed via Docker secrets API
 - **Network Isolation**: Separate networks for Vault and application
+- **Role-Based Access Control**: Roles determined by LDAP group membership
 - **Least Privilege**: Minimal container capabilities and permissions
 
 ## 🏗️ Architecture
 
-### Two-Tier Infrastructure
+### Three-Tier Infrastructure
 
 **1. Shared Vault Infrastructure** (Independent, at homework/vault-infrastructure/)
 - HashiCorp Vault server
@@ -28,26 +31,63 @@ A production-ready web application with enterprise-grade secrets management usin
 **2. Application Stack** (This project: 4_three_tier_app)
 - Apache HTTPS frontend
 - Flask API backend
+- **OpenLDAP authentication server**
 - PostgreSQL database
 - MinIO object storage (S3-compatible)
 - Connects to shared Vault for secrets
 
+**3. Authentication Flow**
+- User submits credentials to backend
+- Backend authenticates against LDAP server
+- LDAP verifies credentials and returns user info
+- Backend queries LDAP for group membership (roles)
+- Backend issues JWT token with user's role
+- Subsequent requests validated via JWT
+
 This separation enables:
+- ✅ Centralized authentication across multiple applications
+- ✅ No password storage in application database
 - ✅ Independent Vault lifecycle
-- ✅ Multiple applications sharing the same Vault instance
+- ✅ Multiple applications sharing the same Vault and LDAP
 - ✅ Production deployment on separate hosts
 - ✅ Enhanced security through isolation
-- ✅ Real-world architecture simulation
+- ✅ Real-world enterprise architecture
 - ✅ Scalable object storage for user files
 
-## 🚀 Quick Start
+## 🚀 Quick Start with LDAP
+
+### Prerequisites
+- Shared Vault infrastructure running (see vault-infrastructure/)
+- VAULT_TOKEN environment variable set
+
+### Automated Setup (Recommended)
+
+```bash
+./setup.sh
+```
+
+This script will:
+1. Start and initialize shared Vault infrastructure (if not running)
+2. Configure application secrets in Vault
+3. Configure LDAP authentication secrets
+4. Start all services (Apache, Flask, PostgreSQL, LDAP, MinIO)
+5. Verify all integrations
+6. Display access information and credentials
+
+**Alternative - LDAP-focused setup:**
+```bash
+cd ldap
+./setup-ldap.sh
+```
+This assumes Vault is already set up and focuses on LDAP verification.
+
+### Manual Setup
 
 ### Step 1: Initialize Shared Vault (First Time Only)
 
 ```bash
 # Navigate to shared Vault infrastructure
 cd ../vault-infrastructure
-
 # Start Vault infrastructure
 docker compose up -d
 
@@ -69,14 +109,18 @@ cd ../../4_three_tier_app
 # Configure application-specific secrets and policies
 cd vault/scripts
 ./setup-vault-app.sh
+
+# Configure LDAP secrets in Vault
+./setup-vault-ldap.sh
 cd ../..
 ```
 
-This script:
-- Creates namespaced policies for this application
-- Generates AppRole credentials
-- Stores secrets at `secret/mes_local_cloud/`
-- Creates database initialization script with hashed passwords
+These scripts:
+- Create namespaced policies for this application
+- Generate AppRole credentials
+- Store secrets at `secret/mes_local_cloud/`
+- Configure LDAP connection settings in Vault
+- Create database initialization script
 
 ### Step 3: Reset Database (First Time Setup)
 
@@ -86,8 +130,10 @@ Since the database init script was just generated, you need to reset the databas
 # Stop services and remove database volume
 docker compose down -v
 docker volume rm 4_three_tier_app_pg_data 2>/dev/null || true
+docker volume rm 4_three_tier_app_ldap_data 2>/dev/null || true
+docker volume rm 4_three_tier_app_ldap_config 2>/dev/null || true
 
-# This ensures the init script runs when database starts
+# This ensures the init scripts run when services start
 ```
 
 ### Step 4: Start Application
@@ -97,9 +143,10 @@ docker volume rm 4_three_tier_app_pg_data 2>/dev/null || true
 docker compose up -d
 
 # Verify Vault integration
-docker compose logs backend | grep Vault
+docker compose logs backend | grep -E "Vault|LDAP"
 
 # Expected output:
+# ✅ LDAP client initialized - using LDAP authentication
 # ✅ Vault integration enabled - secrets managed by Vault
 ```
 
@@ -107,15 +154,28 @@ docker compose logs backend | grep Vault
 
 - **Application**: https://localhost (or http://localhost)
 - **Vault UI**: http://localhost:8200
-- **MinIO Console**: http://localhost:9001 (credentials: minioadmin/minioadmin)
+- **MinIO Console**: http://localhost:9001 (credentials: minioadmin/minioadmin123)
 - **API**: http://localhost:5000
 
-**Default Users** (passwords managed by Vault):
-- admin / admin123
-- alice / alice123  
-- moderator / moderator123
+**Default LDAP Users**:
+- **admin** / admin (admin role)
+- **alice** / alice (user role)
+- **moderator** / moderator (moderator role)
 
-## 📚 Documentation
+⚠️ **Security**: Default passwords are set to username for ease of testing. Change these in production!
+
+### Step 6: Test LDAP Authentication
+
+```bash
+# Test login
+curl -X POST http://localhost/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "admin"}'
+
+# Response includes JWT token with role
+```
+
+## 📚 LDAP Documentation
 
 - **[VAULT_INTEGRATION.md](VAULT_INTEGRATION.md)** - Complete Vault setup and management guide
 - **[.env.example](.env.example)** - Environment configuration template

@@ -13,6 +13,8 @@ class Config:
         self._app_secrets = None
         self._db_config = None
         self._minio_client = None
+        self._ldap_client = None
+        self._ldap_client = None
 
     @property
     def vault_client(self):
@@ -74,6 +76,22 @@ class Config:
             
             logger.info("MinIO client initialized with credentials from Vault")
         return self._minio_client
+
+    def get_ldap_client(self):
+        """Get LDAP client instance with credentials from Vault."""
+        if self._ldap_client is None:
+            from .ldap_client import get_ldap_client
+            
+            # Get LDAP configuration from Vault
+            ldap_config = self.vault_client.get_ldap_config()
+            
+            self._ldap_client = get_ldap_client(ldap_config)
+            
+            if not self._ldap_client:
+                raise RuntimeError("Failed to initialize LDAP client")
+            
+            logger.info("LDAP client initialized with credentials from Vault")
+        return self._ldap_client
 
     def get_user_password(self, username: str) -> str:
         """Get default password for a user from Vault.

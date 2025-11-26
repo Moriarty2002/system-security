@@ -9,3 +9,5 @@ PyJWT>=2.0
 hvac>=1.2.1
 # MinIO (S3-compatible object storage)
 minio>=7.1.0
+# LDAP authentication
+python-ldap>=3.4.0

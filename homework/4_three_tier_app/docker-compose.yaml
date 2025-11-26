@@ -85,6 +85,41 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      ldap:
+        condition: service_healthy
+
+  # LDAP Server for authentication
+  ldap:
+    image: osixia/openldap:1.5.0
+    container_name: ldap_server
+    hostname: ldap-server
+    environment:
+      LDAP_ORGANISATION: "MES Local Cloud"
+      LDAP_DOMAIN: "cloud.mes"
+      LDAP_ADMIN_PASSWORD: "admin"
+      LDAP_CONFIG_PASSWORD: "config"
+      LDAP_RFC2307BIS_SCHEMA: "true"
+      LDAP_REMOVE_CONFIG_AFTER_SETUP: "false"
+      LDAP_TLS: "false"
+      LDAP_LOG_LEVEL: "256"
+    volumes:
+      - ldap_data:/var/lib/ldap
+      - ldap_config:/etc/ldap/slapd.d
+      - type: bind
+        source: ./ldap/ldif
+        target: /container/service/slapd/assets/config/bootstrap/ldif/custom
+    ports:
+      - "389:389"  # LDAP port (for debugging/management)
+      - "636:636"  # LDAPS port
+    restart: unless-stopped
+    networks:
+      - app_net
+    healthcheck:
+      test: ["CMD-SHELL", "ldapsearch -x -H ldap://localhost -b dc=cloud,dc=mes -D 'cn=admin,dc=cloud,dc=mes' -w admin || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   # Layer 3: Database
   db:
@@ -147,6 +182,8 @@ services:
 volumes:
   pg_data:
   minio_data:
+  ldap_data:
+  ldap_config:
 
 networks:
   app_net:

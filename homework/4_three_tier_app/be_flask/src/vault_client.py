@@ -243,6 +243,37 @@ class VaultClient:
         logger.error("Failed to retrieve MinIO config from Vault")
         raise RuntimeError("MinIO configuration not available from Vault. Ensure Vault is configured and accessible.")
 
+    def get_ldap_config(self) -> Dict[str, str]:
+        """Get LDAP configuration from Vault.
+        
+        Returns:
+            Dictionary containing LDAP connection parameters
+            
+        Raises:
+            RuntimeError: If LDAP configuration is not available or incomplete
+        """
+        ldap_secrets = self._read_secret('mes_local_cloud/ldap')
+        
+        if ldap_secrets:
+            url = ldap_secrets.get('url')
+            bind_dn = ldap_secrets.get('bind_dn')
+            bind_password = ldap_secrets.get('bind_password')
+            base_dn = ldap_secrets.get('base_dn')
+            
+            # Validate all required fields are present
+            if not all([url, bind_dn, bind_password, base_dn]):
+                raise RuntimeError("Incomplete LDAP configuration in Vault. Required: url, bind_dn, bind_password, base_dn")
+            
+            return {
+                'url': url,
+                'bind_dn': bind_dn,
+                'bind_password': bind_password,
+                'base_dn': base_dn
+            }
+        
+        logger.error("Failed to retrieve LDAP config from Vault")
+        raise RuntimeError("LDAP configuration not available from Vault. Ensure Vault is configured and accessible.")
+
     def invalidate_cache(self, path: Optional[str] = None) -> None:
         """Invalidate cached secrets.
         

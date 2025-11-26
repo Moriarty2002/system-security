@@ -1,0 +1,12 @@
+# Organizational units for MES Cloud
+# Note: Base DN dc=cloud,dc=mes is created automatically by LDAP_DOMAIN
+
+# Users organizational unit
+dn: ou=users,dc=cloud,dc=mes
+objectClass: organizationalUnit
+ou: users
+
+# Groups organizational unit
+dn: ou=groups,dc=cloud,dc=mes
+objectClass: organizationalUnit
+ou: groups

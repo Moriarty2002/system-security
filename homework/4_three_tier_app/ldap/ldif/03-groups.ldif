@@ -1,0 +1,21 @@
+# Role-based groups for MES Cloud
+
+# Admins group
+dn: cn=admins,ou=groups,dc=cloud,dc=mes
+objectClass: groupOfNames
+cn: admins
+member: uid=admin,ou=users,dc=cloud,dc=mes
+
+# Moderators group
+dn: cn=moderators,ou=groups,dc=cloud,dc=mes
+objectClass: groupOfNames
+cn: moderators
+member: uid=moderator,ou=users,dc=cloud,dc=mes
+
+# Users group
+dn: cn=users,ou=groups,dc=cloud,dc=mes
+objectClass: groupOfNames
+cn: users
+member: uid=alice,ou=users,dc=cloud,dc=mes
+member: uid=admin,ou=users,dc=cloud,dc=mes
+member: uid=moderator,ou=users,dc=cloud,dc=mes

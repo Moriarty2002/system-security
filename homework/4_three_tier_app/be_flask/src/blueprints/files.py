@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 from sqlalchemy import func
 
 from ..auth import authenticate_user
-from ..models import db, User, BinItem
+from ..models import db, LdapUser, BinItem
 from ..utils_minio import (
     get_user_usage_bytes,
     get_user_files_list,
@@ -29,11 +29,11 @@ ERROR_INVALID_PATH = 'invalid path'
 def upload_file():
     """Upload a file for the authenticated user."""
     try:
-        username, user = authenticate_user()
+        username, user, role = authenticate_user()
         minio_client = current_app.config['MINIO_CLIENT']
 
         # Prevent admin and moderator users from uploading files
-        user_role = getattr(user, 'role', 'user')
+        user_role = role
         if user_role not in ['user']:
             logger.warning(f"{user_role.title()} user {username} attempted to upload file")
             return jsonify({'error': f'{user_role}s cannot upload files'}), 403
@@ -111,17 +111,17 @@ def upload_file():
 @files_bp.route('/files', methods=['GET'])
 def list_files():
     """List files for user (or another user if moderator)."""
-    username, user = authenticate_user()
+    username, user, role = authenticate_user()
     minio_client = current_app.config['MINIO_CLIENT']
 
     # Prevent admin users from listing files
-    if getattr(user, 'role', 'user') == 'admin':
+    if role == 'admin':
         logger.warning(f"Admin user {username} attempted to list files")
         abort(403, description='admins cannot access file listings')
 
     # Allow moderators to view other users' file lists via ?user=<username>
     target = request.args.get('user') or username
-    if target != username and getattr(user, 'role', '') != 'moderator':
+    if target != username and role != 'moderator':
         abort(403, description='insufficient role to view other users')
 
     subpath = request.args.get('path', '').strip()
@@ -135,7 +135,7 @@ def list_files():
     if target == username:
         quota = user.quota
     else:
-        target_user = User.query.get(target)
+        target_user = LdapUser.query.get(target)
         quota = target_user.quota if target_user else 0
 
     return jsonify({
@@ -150,13 +150,13 @@ def list_files():
 @files_bp.route('/users', methods=['GET'])
 def list_users_for_moderator():
     """List all usernames (moderator only)."""
-    _, user = authenticate_user()
+    _, user, role = authenticate_user()
 
     # Only moderators can access this endpoint
-    if getattr(user, 'role', '') != 'moderator':
+    if role != 'moderator':
         abort(403, description='only moderators can list users')
 
-    users = User.query.order_by(User.username).all()
+    users = LdapUser.query.order_by(User.username).all()
     usernames = [u.username for u in users]
 
     return jsonify({'users': usernames})
@@ -165,17 +165,17 @@ def list_users_for_moderator():
 @files_bp.route('/files/<filename>', methods=['GET'])
 def download_file(filename):
     """Download a file."""
-    username, user = authenticate_user()
+    username, user, role = authenticate_user()
     minio_client = current_app.config['MINIO_CLIENT']
 
     # Prevent admin users from downloading files
-    if getattr(user, 'role', 'user') == 'admin':
+    if role == 'admin':
         logger.warning(f"Admin user {username} attempted to download file")
         abort(403, description='admins cannot download files')
 
     # Allow moderators to download other users' files via ?user=<username>
     target = request.args.get('user') or username
-    if target != username and getattr(user, 'role', '') != 'moderator':
+    if target != username and role != 'moderator':
         abort(403, description='insufficient role to download other users files')
 
     # Get path from query parameter
@@ -208,11 +208,11 @@ def download_file(filename):
 @files_bp.route('/files/<filename>', methods=['DELETE'])
 def delete_file(filename):
     """Move a file or directory to bin."""
-    username, user = authenticate_user()
+    username, user, role = authenticate_user()
     minio_client = current_app.config['MINIO_CLIENT']
 
     # Prevent admin users from deleting files
-    if getattr(user, 'role', 'user') == 'admin':
+    if role == 'admin':
         logger.warning(f"Admin user {username} attempted to delete file")
         abort(403, description='admins cannot delete files')
 
@@ -274,11 +274,11 @@ def delete_file(filename):
 def create_directory():
     """Create a directory for the authenticated user."""
     try:
-        username, user = authenticate_user()
+        username, user, role = authenticate_user()
         minio_client = current_app.config['MINIO_CLIENT']
 
         # Prevent admin and moderator users from creating directories
-        user_role = getattr(user, 'role', 'user')
+        user_role = role
         if user_role not in ['user']:
             logger.warning(f"{user_role.title()} user {username} attempted to create directory")
             return jsonify({'error': f'{user_role}s cannot create directories'}), 403
@@ -322,10 +322,10 @@ def create_directory():
 @files_bp.route('/bin', methods=['GET'])
 def list_bin():
     """List items in user's bin."""
-    username, user = authenticate_user()
+    username, user, role = authenticate_user()
 
     # Prevent admin users from accessing bin
-    if getattr(user, 'role', 'user') == 'admin':
+    if role == 'admin':
         logger.warning(f"Admin user {username} attempted to access bin")
         abort(403, description='admins cannot access bin')
 
@@ -336,11 +336,11 @@ def list_bin():
 @files_bp.route('/bin/<int:item_id>/restore', methods=['POST'])
 def restore_from_bin_endpoint(item_id):
     """Restore an item from bin."""
-    username, user = authenticate_user()
+    username, user, role = authenticate_user()
     minio_client = current_app.config['MINIO_CLIENT']
 
     # Prevent admin users from restoring from bin
-    if getattr(user, 'role', 'user') == 'admin':
+    if role == 'admin':
         logger.warning(f"Admin user {username} attempted to restore from bin")
         abort(403, description='admins cannot restore from bin')
 
@@ -359,11 +359,11 @@ def restore_from_bin_endpoint(item_id):
 @files_bp.route('/bin/<int:item_id>', methods=['DELETE'])
 def permanently_delete_from_bin_endpoint(item_id):
     """Permanently delete an item from bin."""
-    username, user = authenticate_user()
+    username, user, role = authenticate_user()
     minio_client = current_app.config['MINIO_CLIENT']
 
     # Prevent admin users from permanently deleting from bin
-    if getattr(user, 'role', 'user') == 'admin':
+    if role == 'admin':
         logger.warning(f"Admin user {username} attempted to permanently delete from bin")
         abort(403, description='admins cannot permanently delete from bin')
 
@@ -382,10 +382,10 @@ def permanently_delete_from_bin_endpoint(item_id):
 @files_bp.route('/bin/cleanup', methods=['POST'])
 def cleanup_bin():
     """Clean up expired bin items (admin only)."""
-    username, user = authenticate_user()
+    username, user, role = authenticate_user()
     minio_client = current_app.config['MINIO_CLIENT']
 
-    if getattr(user, 'role', '') != 'admin':
+    if role != 'admin':
         abort(403, description='only admins can cleanup bin')
 
     try:
