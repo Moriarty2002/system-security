@@ -9,6 +9,7 @@ A production-ready web application with enterprise-grade secrets management usin
 - **AppRole Authentication**: Secure machine-to-machine authentication
 - **JWT Token Security**: Signing keys rotated and managed by Vault
 - **Database Security**: Credentials stored and rotated in Vault
+- **MinIO Security**: Dedicated application user with bucket-only access
 - **Docker Secrets**: Sensitive data passed via Docker secrets API
 - **Network Isolation**: Separate networks for Vault and application
 - **Least Privilege**: Minimal container capabilities and permissions

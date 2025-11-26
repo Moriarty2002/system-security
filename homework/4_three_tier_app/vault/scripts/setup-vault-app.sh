@@ -88,11 +88,11 @@ echo "✅ Admin policy created"
 # Create AppRole for Flask application
 echo ""
 echo "==================================="
-echo "Creating AppRole..."
+echo "Creating AppRoles..."
 echo "==================================="
 echo ""
 
-echo "Creating AppRole for 4_three_tier_app Flask application..."
+echo "Creating AppRole for Flask backend..."
 vault_exec write auth/approle/role/mes_local_cloud-flask-app \
     token_policies="mes_local_cloud-app" \
     token_ttl=1h \
@@ -102,9 +102,22 @@ vault_exec write auth/approle/role/mes_local_cloud-flask-app \
 
 echo "✅ AppRole 'mes_local_cloud-flask-app' created"
 
-# Get Role ID and Secret ID
+# Get Role ID and Secret ID for Flask backend
 ROLE_ID=$(vault_exec read -field=role_id auth/approle/role/mes_local_cloud-flask-app/role-id)
 SECRET_ID=$(vault_exec write -field=secret_id -f auth/approle/role/mes_local_cloud-flask-app/secret-id)
+
+echo ""
+echo "Creating AppRole for Apache frontend..."
+vault_exec write auth/approle-apache/role/apache-server \
+    token_policies="pki-policy" \
+    token_ttl=1h \
+    token_max_ttl=4h \
+    bind_secret_id=true \
+    secret_id_ttl=0 2>/dev/null || echo "Note: Apache AppRole may need PKI policy setup first"
+
+# Get Role ID and Secret ID for Apache
+APACHE_ROLE_ID=$(vault_exec read -field=role_id auth/approle-apache/role/apache-server/role-id 2>/dev/null || echo "not-configured")
+APACHE_SECRET_ID=$(vault_exec write -field=secret_id -f auth/approle-apache/role/apache-server/secret-id 2>/dev/null || echo "not-configured")
 
 # Save AppRole credentials
 cat > "$APP_CREDENTIALS_FILE" <<EOF
@@ -155,6 +168,25 @@ vault_exec kv put secret/mes_local_cloud/database/postgres \
     port="5432"
 
 echo "✅ Database secrets stored at secret/mes_local_cloud/database/postgres"
+
+# Generate and store MinIO application user credentials
+echo ""
+echo "Generating MinIO application user credentials..."
+
+# Generate secure credentials for MinIO application user
+MINIO_APP_USER="app-storage"
+MINIO_APP_PASSWORD=$(openssl rand -base64 32)
+
+# Store MinIO credentials in Vault (using dedicated app user, not root)
+vault_exec kv put secret/mes_local_cloud/minio \
+    access_key="$MINIO_APP_USER" \
+    secret_key="$MINIO_APP_PASSWORD" \
+    endpoint="minio:9000" \
+    bucket="user-files" \
+    use_ssl="false"
+
+echo "✅ MinIO application user credentials stored at secret/mes_local_cloud/minio"
+echo "   User: $MINIO_APP_USER (least-privilege access to user-files bucket only)"
 
 # Generate database init script with hashed passwords
 echo ""
@@ -215,12 +247,43 @@ echo "✅ Database initialization script generated"
 cat > "$PROJECT_ROOT/.env" <<EOF
 # Vault Configuration - Uses Shared Vault Infrastructure
 VAULT_ADDR=http://shared_vault_server:8200
+
+# Backend AppRole (Flask application) - mes_local_cloud
 VAULT_ROLE_ID=$ROLE_ID
 VAULT_SECRET_ID=$SECRET_ID
+
+# Apache AppRole (Frontend web server)
+APACHE_VAULT_ROLE_ID=$APACHE_ROLE_ID
+APACHE_VAULT_SECRET_ID=$APACHE_SECRET_ID
+APACHE_VAULT_AUTH_PATH=approle-apache
+
+# PKI Configuration for Apache
+PKI_ENGINE=pki_localhost
+PKI_ROLE=apache-server-localhost
 
 # Application Configuration
 FLASK_ENV=production
 PYTHONUNBUFFERED=1
+
+# PostgreSQL Configuration
+POSTGRES_USER=admin
+POSTGRES_DB=postgres_db
+POSTGRES_APP_USER=flask_app
+POSTGRES_APP_PASSWORD=flask_app_secure_password
+
+# MinIO Root Credentials (for MinIO container administration only)
+# These are NOT used by the Flask application
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=minioadmin
+
+# MinIO Application User (passed to init script)
+# These credentials are also stored in Vault for the Flask app
+MINIO_APP_USER=$MINIO_APP_USER
+MINIO_APP_PASSWORD=$MINIO_APP_PASSWORD
+
+# MinIO Configuration
+MINIO_BUCKET=user-files
+MINIO_USE_SSL=false
 EOF
 
 echo "✅ .env file created at project root"
@@ -250,6 +313,7 @@ echo "   - Connected to shared Vault at: $VAULT_ADDR"
 echo "   - Application policies created (mes_local_cloud-app, mes_local_cloud-admin)"
 echo "   - AppRole 'mes_local_cloud-flask-app' created"
 echo "   - Secrets stored at: secret/mes_local_cloud/"
+echo "   - MinIO app user: $MINIO_APP_USER (least-privilege, bucket-only access)"
 echo ""
 echo "📁 Important files created:"
 echo "   - $APP_CREDENTIALS_FILE (AppRole credentials)"
