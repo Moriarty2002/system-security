@@ -1,0 +1,159 @@
+services:
+
+  # Layer 1: Web Server (Apache)
+  apache-fe:
+    build: ./apache
+    container_name: apache_fe
+    ports:
+      - "80:80"
+      - "443:443"
+    env_file:
+      - .env
+    environment:
+      - VAULT_ADDR=${VAULT_ADDR:-https://shared_vault_server:8200}
+      - VAULT_SKIP_VERIFY=1
+      - APACHE_VAULT_ROLE_ID=${APACHE_VAULT_ROLE_ID:?APACHE_VAULT_ROLE_ID is required}
+      - APACHE_VAULT_SECRET_ID=${APACHE_VAULT_SECRET_ID:?APACHE_VAULT_SECRET_ID is required}
+      - APACHE_VAULT_AUTH_PATH=${APACHE_VAULT_AUTH_PATH:?APACHE_VAULT_AUTH_PATH is required}
+      - PKI_ENGINE=${PKI_ENGINE:?PKI_ENGINE is required}
+      - PKI_ROLE=${PKI_ROLE:?PKI_ROLE is required}
+    volumes:
+      # config
+      - type: bind
+        source: ./apache/config/httpd.conf
+        target: /usr/local/apache2/conf/httpd.conf
+        read_only: true
+      - type: bind
+        source: ./apache/config/ssl/apache_ssl.conf
+        target: /usr/local/apache2/conf/extra/httpd-ssl.conf
+        read_only: true
+      # certs folder - tmpfs (in-memory, not persisted to host)
+      - type: tmpfs
+        target: /usr/local/apache2/conf/extra/certs
+        tmpfs:
+          size: 10M
+      # web files
+      - type: bind
+        source: ./apache/app
+        target: /usr/local/apache2/htdocs/
+        read_only: true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - SETGID
+      - SETUID
+    restart: unless-stopped
+    networks:
+      - app_net
+      - shared_vault_net
+    depends_on:
+      - backend
+
+  # Layer 2: Backend (Flask)
+  backend:
+    build: ./be_flask
+    container_name: flask_be
+    env_file:
+      - .env
+    environment:
+      # Vault Configuration - Uses shared Vault infrastructure
+      VAULT_ADDR: ${VAULT_ADDR:-https://shared_vault_server:8200}
+      VAULT_SKIP_VERIFY: 1
+      VAULT_ROLE_ID: ${VAULT_ROLE_ID:?VAULT_ROLE_ID is required}
+      VAULT_SECRET_ID: ${VAULT_SECRET_ID:?VAULT_SECRET_ID is required}
+      
+      # Application Configuration
+      FLASK_ENV: ${FLASK_ENV:?FLASK_ENV is required (production or development)}
+      PYTHONUNBUFFERED: 1
+    restart: unless-stopped # Added for robustness
+    networks:
+      - app_net # Connect to the custom network
+      - shared_vault_net # Connect to Vault network
+    # This service doesn't need 'ports' as it's only accessed
+    # by the apache-FE service over the internal 'app_net' network.
+    expose:
+      - "5000" # Document the internal port (assuming Flask runs on 5000)
+    depends_on:
+      db:
+        # Wait for the DB to be fully ready, not just started
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  # Layer 3: Database
+  db:
+    image: postgres:14-alpine
+    container_name: postgres_db
+    environment:
+      # Admin credentials for database initialization
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      # Application user credentials (limited privileges)
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER:?POSTGRES_APP_USER is required}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD is required}
+    secrets:
+      - db_password
+    volumes:
+      # Use a named volume instead of bind mount
+      - pg_data:/var/lib/postgresql/data
+      
+      # INIT SCRIPTS - Creates tables, users, and application user
+      - type: bind 
+        source: ./be_flask/db_init
+        target: /docker-entrypoint-initdb.d
+        read_only: true
+    # Security: No ports exposed - only accessible via internal network
+    # Uncomment if you need direct database access for debugging:
+    # ports:
+    #   - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - app_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Object Storage (MinIO - S3-compatible)
+  minio:
+    image: minio/minio:latest
+    container_name: minio_storage
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"  # API endpoint
+      - "9001:9001"  # Web console
+    restart: unless-stopped
+    networks:
+      - app_net
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pg_data:
+  minio_data:
+
+networks:
+  app_net:
+    driver: bridge
+  shared_vault_net:
+    external: true
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt

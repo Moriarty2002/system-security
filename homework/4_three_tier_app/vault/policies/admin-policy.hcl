@@ -1,0 +1,19 @@
+# Admin Policy for 4_three_tier_app Vault Management
+# This policy grants administrative access for managing this application's
+# secrets in the shared Vault infrastructure.
+#
+# Use this policy carefully and only for initial setup/maintenance.
+
+# Full access to application's secret paths
+path "secret/data/mes_local_cloud/*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+path "secret/metadata/mes_local_cloud/*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+# Manage application-specific AppRole
+path "auth/approle/role/mes_local_cloud-*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}

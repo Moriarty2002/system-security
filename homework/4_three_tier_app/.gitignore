@@ -1,0 +1,46 @@
+# Environment Configuration
+.env
+
+# Database Password Secret
+secrets/
+secrets/db_password.txt
+
+# Application Logs
+be_flask/src/*.log
+be_flask/src/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Python Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+postgres_data/
+*.db
+*.sqlite
+*.sqlite3
+
+# SSL Certificates (if generated locally)
+apache/certs/*.key
+apache/certs/*.csr
+apache/certs/*.pem
+
+# Temporary Files
+*.tmp
+*.bak
+*.old
