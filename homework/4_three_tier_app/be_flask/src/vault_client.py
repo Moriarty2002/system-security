@@ -43,6 +43,7 @@ class VaultClient:
         if self._enabled:
             self._authenticate()
         else:
+            logger.error("Vault is not enabled. Application requires Vault for secrets management.")
             raise RuntimeError("Vault is not enabled. Application requires Vault for secrets management.")
 
     def _check_vault_enabled(self) -> bool:
@@ -172,8 +173,7 @@ class VaultClient:
                 'moderator_password': secrets.get('moderator_password'),
             }
         
-        # No fallback - Vault is required
-        logger.error("Failed to retrieve app secrets from Vault - no fallback available")
+        logger.error("Failed to retrieve app secrets from Vault")
         raise RuntimeError("Application secrets not available from Vault. Ensure Vault is configured and accessible.")
 
     def get_database_config(self) -> Dict[str, str]:
@@ -210,9 +210,38 @@ class VaultClient:
                 'url': f"postgresql://{username_encoded}:{password_encoded}@{host}:{port}/{database}"
             }
         
-        # No fallback - Vault is required
-        logger.error("Failed to retrieve database config from Vault - no fallback available")
+        logger.error("Failed to retrieve database config from Vault")
         raise RuntimeError("Database configuration not available from Vault. Ensure Vault is configured and accessible.")
+
+    def get_minio_config(self) -> Dict[str, str]:
+        """Get MinIO configuration from Vault.
+        
+        Returns:
+            Dictionary containing MinIO connection parameters
+        """
+        minio_secrets = self._read_secret('mes_local_cloud/minio')
+        
+        if minio_secrets:
+            access_key = minio_secrets.get('access_key')
+            secret_key = minio_secrets.get('secret_key')
+            endpoint = minio_secrets.get('endpoint')
+            bucket = minio_secrets.get('bucket')
+            use_ssl = minio_secrets.get('use_ssl')
+            
+            # Validate all required fields are present
+            if not all([access_key, secret_key, endpoint, bucket]):
+                raise RuntimeError("Incomplete MinIO configuration in Vault. Required: access_key, secret_key, endpoint, bucket")
+            
+            return {
+                'access_key': access_key,
+                'secret_key': secret_key,
+                'endpoint': endpoint,
+                'bucket': bucket,
+                'use_ssl': use_ssl if isinstance(use_ssl, bool) else str(use_ssl).lower() == 'true'
+            }
+        
+        logger.error("Failed to retrieve MinIO config from Vault")
+        raise RuntimeError("MinIO configuration not available from Vault. Ensure Vault is configured and accessible.")
 
     def invalidate_cache(self, path: Optional[str] = None) -> None:
         """Invalidate cached secrets.

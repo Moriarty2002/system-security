@@ -53,20 +53,26 @@ class Config:
         
         raise RuntimeError("Database configuration not available from Vault")
 
-    @property
-    def STORAGE_DIR(self) -> str:
-        """Storage directory for user files (legacy - now using MinIO)."""
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        return os.path.join(base_dir, 'storage')
-
-    @property
-    def MINIO_CLIENT(self):
-        """Get MinIO client instance."""
+    def get_minio_client(self):
+        """Get MinIO client instance with credentials from Vault."""
         if self._minio_client is None:
-            from .minio_client import get_minio_client
-            self._minio_client = get_minio_client()
+            from .minio_client import MinIOClient
+            
+            # Get MinIO configuration from Vault
+            minio_config = self.vault_client.get_minio_config()
+            
+            self._minio_client = MinIOClient(
+                endpoint=minio_config['endpoint'],
+                access_key=minio_config['access_key'],
+                secret_key=minio_config['secret_key'],
+                bucket_name=minio_config['bucket'],
+                secure=minio_config['use_ssl']
+            )
+            
             if not self._minio_client:
                 raise RuntimeError("Failed to initialize MinIO client")
+            
+            logger.info("MinIO client initialized with credentials from Vault")
         return self._minio_client
 
     def get_user_password(self, username: str) -> str:

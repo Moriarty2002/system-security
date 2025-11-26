@@ -656,30 +656,3 @@ class MinIOClient:
             return False
 
 
-def get_minio_client() -> Optional[MinIOClient]:
-    """Get MinIO client instance from environment configuration.
-
-    Returns:
-        MinIOClient instance or None if configuration is missing
-    """
-    endpoint = os.environ.get('MINIO_ENDPOINT')
-    access_key = os.environ.get('MINIO_ACCESS_KEY')
-    secret_key = os.environ.get('MINIO_SECRET_KEY')
-    bucket_name = os.environ.get('MINIO_BUCKET', 'user-files')
-    use_ssl = os.environ.get('MINIO_USE_SSL', 'false').lower() == 'true'
-    
-    if not endpoint or not access_key or not secret_key:
-        logger.error("MinIO configuration incomplete. Required: MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY")
-        return None
-    
-    try:
-        return MinIOClient(
-            endpoint=endpoint,
-            access_key=access_key,
-            secret_key=secret_key,
-            bucket_name=bucket_name,
-            secure=use_ssl
-        )
-    except Exception as e:
-        logger.error(f"Failed to create MinIO client: {e}")
-        return None

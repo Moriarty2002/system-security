@@ -14,6 +14,11 @@ path "secret/data/mes_local_cloud/database/*" {
   capabilities = ["read"]
 }
 
+# Read MinIO object storage credentials
+path "secret/data/mes_local_cloud/minio" {
+  capabilities = ["read"]
+}
+
 # Allow the app to renew its own token
 path "auth/token/renew-self" {
   capabilities = ["update"]

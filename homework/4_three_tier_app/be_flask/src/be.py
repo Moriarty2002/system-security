@@ -62,12 +62,9 @@ def create_app(config_object=None) -> Flask:
         config = get_config()
         app.config.from_object(config)
 
-    # Add storage directory to config
-    app.config['STORAGE_DIR'] = config.STORAGE_DIR
-    
-    # Add MinIO client to config
+    # Initialize MinIO client
     try:
-        app.config['MINIO_CLIENT'] = config.MINIO_CLIENT
+        app.config['MINIO_CLIENT'] = config.get_minio_client()
     except Exception as e:
         print(f"❌ Failed to initialize MinIO client: {e}")
         raise
@@ -83,7 +80,7 @@ def create_app(config_object=None) -> Flask:
         if config.vault_client.is_available():
             app.logger.info("✅ Vault integration enabled - secrets managed by Vault")
         else:
-            app.logger.warning("⚠️  Vault unavailable - using fallback configuration")
+            raise RuntimeError("Vault is not available. Application requires Vault for all configuration.")
     
     # Log database connection (without exposing password)
     db_uri = app.config.get('SQLALCHEMY_DATABASE_URI')
