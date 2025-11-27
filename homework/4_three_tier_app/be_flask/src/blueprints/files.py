@@ -70,7 +70,7 @@ def upload_file():
         file_stream.seek(0)
 
         # Lock the user row and check quota inside a transaction
-        db_user = db.session.query(User).with_for_update().get(username)
+        db_user = db.session.query(LdapUser).with_for_update().get(username)
         if not db_user:
             logger.error(f"User {username} not found during upload")
             abort(403, description='Unknown user')
