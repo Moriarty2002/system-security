@@ -4,9 +4,8 @@ from typing import Tuple, Optional
 
 import jwt
 from flask import request, abort, current_app
-from werkzeug.security import generate_password_hash, check_password_hash
 
-from .models import db, User, LdapUser
+from .models import db, LdapUser
 
 logger = logging.getLogger(__name__)
 
@@ -171,29 +170,3 @@ def require_admin(role: str) -> None:
     """
     if role != 'admin':
         abort(403, description='admin required')
-
-
-# Legacy functions for backward compatibility with old User model
-def hash_password(password: str) -> str:
-    """Hash a password for storage.
-
-    Args:
-        password: Plain text password
-
-    Returns:
-        Hashed password
-    """
-    return generate_password_hash(password)
-
-
-def verify_password(password_hash: str, password: str) -> bool:
-    """Verify a password against its hash.
-
-    Args:
-        password_hash: Hashed password
-        password: Plain text password
-
-    Returns:
-        True if password matches hash
-    """
-    return check_password_hash(password_hash, password)
