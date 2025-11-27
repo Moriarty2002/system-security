@@ -236,8 +236,10 @@ def get_ldap_client(ldap_config: dict) -> LdapClient:
     if missing:
         raise ValueError(f"LDAP configuration missing required fields: {missing}")
 
-    # Optional CA certificate path (with default)
-    ca_cert_file = ldap_config.get('ca_cert_file', '/etc/ssl/certs/ldap-ca-cert.pem')
+    # CA certificate path (required)
+    ca_cert_file = ldap_config.get('ca_cert_file')
+    if not ca_cert_file:
+        raise ValueError("LDAP configuration missing required field: ca_cert_file")
 
     return LdapClient(
         ldap_url=ldap_config['url'],

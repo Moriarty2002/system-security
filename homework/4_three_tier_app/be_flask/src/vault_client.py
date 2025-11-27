@@ -24,9 +24,17 @@ class VaultClient:
         
         if not self.vault_addr:
             raise RuntimeError("VAULT_ADDR environment variable is required")
+        if not self.role_id:
+            raise RuntimeError("VAULT_ROLE_ID environment variable is required")
+        if not self.secret_id:
+            raise RuntimeError("VAULT_SECRET_ID environment variable is required")
+        
         # Skip TLS verification for self-signed certificates (dev only)
         # When VAULT_SKIP_VERIFY=1, we want verify=False
-        self.verify_tls = os.environ.get('VAULT_SKIP_VERIFY', '0') == '0'
+        vault_skip_verify = os.environ.get('VAULT_SKIP_VERIFY')
+        if not vault_skip_verify:
+            raise RuntimeError("VAULT_SKIP_VERIFY environment variable is required")
+        self.verify_tls = vault_skip_verify == '0'
         
         # Disable SSL warnings when skipping verification
         if not self.verify_tls:
@@ -259,16 +267,18 @@ class VaultClient:
             bind_dn = ldap_secrets.get('bind_dn')
             bind_password = ldap_secrets.get('bind_password')
             base_dn = ldap_secrets.get('base_dn')
+            ca_cert_file = ldap_secrets.get('ca_cert_file')
             
             # Validate all required fields are present
-            if not all([url, bind_dn, bind_password, base_dn]):
-                raise RuntimeError("Incomplete LDAP configuration in Vault. Required: url, bind_dn, bind_password, base_dn")
+            if not all([url, bind_dn, bind_password, base_dn, ca_cert_file]):
+                raise RuntimeError("Incomplete LDAP configuration in Vault. Required: url, bind_dn, bind_password, base_dn, ca_cert_file")
             
             return {
                 'url': url,
                 'bind_dn': bind_dn,
                 'bind_password': bind_password,
-                'base_dn': base_dn
+                'base_dn': base_dn,
+                'ca_cert_file': ca_cert_file
             }
         
         logger.error("Failed to retrieve LDAP config from Vault")

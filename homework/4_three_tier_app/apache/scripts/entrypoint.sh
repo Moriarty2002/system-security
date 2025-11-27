@@ -2,7 +2,7 @@
 set -e
 
 # Fetch certificates from Vault on startup
-VAULT_ADDR="${VAULT_ADDR:-https://shared_vault_server:8200}"
+VAULT_ADDR="${VAULT_ADDR}"
 VAULT_ROLE_ID="${APACHE_VAULT_ROLE_ID}"
 VAULT_SECRET_ID="${APACHE_VAULT_SECRET_ID}"
 VAULT_AUTH_PATH="${APACHE_VAULT_AUTH_PATH}"
@@ -10,8 +10,9 @@ PKI_ENGINE="${PKI_ENGINE}"
 PKI_ROLE="${PKI_ROLE}"
 
 # Validate required configuration
-if [ -z "$VAULT_ROLE_ID" ] || [ -z "$VAULT_SECRET_ID" ] || [ -z "$VAULT_AUTH_PATH" ] || [ -z "$PKI_ENGINE" ] || [ -z "$PKI_ROLE" ]; then
+if [ -z "$VAULT_ADDR" ] || [ -z "$VAULT_ROLE_ID" ] || [ -z "$VAULT_SECRET_ID" ] || [ -z "$VAULT_AUTH_PATH" ] || [ -z "$PKI_ENGINE" ] || [ -z "$PKI_ROLE" ]; then
     echo "ERROR: Missing required Vault configuration:"
+    [ -z "$VAULT_ADDR" ] && echo "  - VAULT_ADDR"
     [ -z "$VAULT_ROLE_ID" ] && echo "  - APACHE_VAULT_ROLE_ID"
     [ -z "$VAULT_SECRET_ID" ] && echo "  - APACHE_VAULT_SECRET_ID"
     [ -z "$VAULT_AUTH_PATH" ] && echo "  - APACHE_VAULT_AUTH_PATH"

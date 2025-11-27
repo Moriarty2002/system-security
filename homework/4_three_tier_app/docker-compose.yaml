@@ -10,7 +10,7 @@ services:
     env_file:
       - .env
     environment:
-      - VAULT_ADDR=${VAULT_ADDR:-https://shared_vault_server:8200}
+      - VAULT_ADDR=${VAULT_ADDR:?VAULT_ADDR is required}
       - VAULT_SKIP_VERIFY=1
       - APACHE_VAULT_ROLE_ID=${APACHE_VAULT_ROLE_ID:?APACHE_VAULT_ROLE_ID is required}
       - APACHE_VAULT_SECRET_ID=${APACHE_VAULT_SECRET_ID:?APACHE_VAULT_SECRET_ID is required}
@@ -63,7 +63,7 @@ services:
       - .env
     environment:
       # Vault Configuration - Uses shared Vault infrastructure
-      VAULT_ADDR: ${VAULT_ADDR:-https://shared_vault_server:8200}
+      VAULT_ADDR: ${VAULT_ADDR:?VAULT_ADDR is required}
       VAULT_SKIP_VERIFY: 1
       VAULT_ROLE_ID: ${VAULT_ROLE_ID:?VAULT_ROLE_ID is required}
       VAULT_SECRET_ID: ${VAULT_SECRET_ID:?VAULT_SECRET_ID is required}
@@ -122,14 +122,14 @@ services:
       # Logging and Audit
       LDAP_LOG_LEVEL: "256"  # Log connections, operations, and results
       LDAP_LOGLEVEL: "stats"  # Additional statistics logging
-      # Vault Configuration (optional - falls back to local certs if not set)
-      VAULT_ADDR: ${VAULT_ADDR:-https://shared_vault_server:8200}
+      # Vault Configuration
+      VAULT_ADDR: ${VAULT_ADDR:?VAULT_ADDR is required}
       VAULT_SKIP_VERIFY: 1
-      LDAP_VAULT_ROLE_ID: ${LDAP_VAULT_ROLE_ID:-}
-      LDAP_VAULT_SECRET_ID: ${LDAP_VAULT_SECRET_ID:-}
-      LDAP_VAULT_AUTH_PATH: ${LDAP_VAULT_AUTH_PATH:-approle}
-      PKI_ENGINE: ${PKI_ENGINE:-pki_localhost}
-      PKI_ROLE: ${LDAP_PKI_ROLE:-ldap-server-localhost}
+      LDAP_VAULT_ROLE_ID: ${LDAP_VAULT_ROLE_ID:?LDAP_VAULT_ROLE_ID is required}
+      LDAP_VAULT_SECRET_ID: ${LDAP_VAULT_SECRET_ID:?LDAP_VAULT_SECRET_ID is required}
+      LDAP_VAULT_AUTH_PATH: ${LDAP_VAULT_AUTH_PATH:?LDAP_VAULT_AUTH_PATH is required}
+      PKI_ENGINE: ${PKI_ENGINE:?PKI_ENGINE is required}
+      PKI_ROLE: ${LDAP_PKI_ROLE:?LDAP_PKI_ROLE is required}
     volumes:
       # LDAP data and configuration
       - ldap_data:/var/lib/ldap

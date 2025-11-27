@@ -2,12 +2,12 @@
 set -e
 
 # Fetch certificates from Vault on startup for LDAP server
-VAULT_ADDR="${VAULT_ADDR:-https://shared_vault_server:8200}"
+VAULT_ADDR="${VAULT_ADDR}"
 VAULT_ROLE_ID="${LDAP_VAULT_ROLE_ID}"
 VAULT_SECRET_ID="${LDAP_VAULT_SECRET_ID}"
-VAULT_AUTH_PATH="${LDAP_VAULT_AUTH_PATH:-approle}"
-PKI_ENGINE="${PKI_ENGINE:-pki_localhost}"
-PKI_ROLE="${PKI_ROLE:-ldap-server-localhost}"
+VAULT_AUTH_PATH="${LDAP_VAULT_AUTH_PATH}"
+PKI_ENGINE="${PKI_ENGINE}"
+PKI_ROLE="${PKI_ROLE}"
 
 CERT_DIR="/container/service/slapd/assets/certs"
 KV_PATH="secret/data/mes_local_cloud/certificates/ldap"
@@ -15,25 +15,19 @@ KV_PATH="secret/data/mes_local_cloud/certificates/ldap"
 echo "🔐 LDAP Certificate Management via Vault"
 echo "========================================"
 
-# Check if Vault integration is configured
-if [ -z "$VAULT_ROLE_ID" ] || [ -z "$VAULT_SECRET_ID" ]; then
-    echo "⚠️  Vault credentials not configured - using local certificates"
-    echo "   Set LDAP_VAULT_ROLE_ID and LDAP_VAULT_SECRET_ID to enable Vault integration"
+# Validate required Vault configuration
+if [ -z "$VAULT_ADDR" ] || [ -z "$VAULT_ROLE_ID" ] || [ -z "$VAULT_SECRET_ID" ] || [ -z "$VAULT_AUTH_PATH" ] || [ -z "$PKI_ENGINE" ] || [ -z "$PKI_ROLE" ]; then
+    echo "❌ ERROR: Missing required Vault configuration:"
+    [ -z "$VAULT_ADDR" ] && echo "   - VAULT_ADDR"
+    [ -z "$VAULT_ROLE_ID" ] && echo "   - LDAP_VAULT_ROLE_ID"
+    [ -z "$VAULT_SECRET_ID" ] && echo "   - LDAP_VAULT_SECRET_ID"
+    [ -z "$VAULT_AUTH_PATH" ] && echo "   - LDAP_VAULT_AUTH_PATH"
+    [ -z "$PKI_ENGINE" ] && echo "   - PKI_ENGINE"
+    [ -z "$PKI_ROLE" ] && echo "   - PKI_ROLE (LDAP_PKI_ROLE)"
     echo ""
-    
-    # Check if local certificates exist
-    if [ -f "${CERT_DIR}/ldap-cert.pem" ] && [ -f "${CERT_DIR}/ldap-key.pem" ]; then
-        echo "✅ Using existing local certificates"
-    else
-        echo "❌ No certificates found!"
-        echo "   Please either:"
-        echo "   1. Generate local certs: ./ldap/scripts/generate-certs.sh"
-        echo "   2. Configure Vault integration with LDAP_VAULT_ROLE_ID and LDAP_VAULT_SECRET_ID"
-        exit 1
-    fi
-    
-    # Start LDAP normally
-    exec /container/tool/run
+    echo "All LDAP certificates must come from Vault."
+    echo "Please configure Vault and set the required environment variables."
+    exit 1
 fi
 
 echo "Authenticating with Vault using AppRole..."
