@@ -1,0 +1,140 @@
+dn: dc=cloud,dc=mes
+objectClass: top
+objectClass: dcObject
+objectClass: organization
+o: MES Local Cloud
+dc: cloud
+structuralObjectClass: organization
+entryUUID: 0db4df90-5f5b-1040-8911-abcd48f1516b
+creatorsName: cn=admin,dc=cloud,dc=mes
+createTimestamp: 20251126213146Z
+entryCSN: 20251126213146.110198Z#000000#000#000000
+modifiersName: cn=admin,dc=cloud,dc=mes
+modifyTimestamp: 20251126213146Z
+
+dn: ou=users,dc=cloud,dc=mes
+objectClass: organizationalUnit
+ou: users
+structuralObjectClass: organizationalUnit
+entryUUID: 0dee5234-5f5b-1040-8dca-2d195eef2814
+creatorsName: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+createTimestamp: 20251126213146Z
+entryCSN: 20251126213146.486695Z#000000#000#000000
+modifiersName: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+modifyTimestamp: 20251126213146Z
+
+dn: ou=groups,dc=cloud,dc=mes
+objectClass: organizationalUnit
+ou: groups
+structuralObjectClass: organizationalUnit
+entryUUID: 0deed6fa-5f5b-1040-8dcb-2d195eef2814
+creatorsName: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+createTimestamp: 20251126213146Z
+entryCSN: 20251126213146.490092Z#000000#000#000000
+modifiersName: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+modifyTimestamp: 20251126213146Z
+
+dn: uid=admin,ou=users,dc=cloud,dc=mes
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: admin
+sn: Administrator
+givenName: Admin
+cn: Admin Administrator
+displayName: Admin
+uidNumber: 10000
+gidNumber: 10000
+userPassword:: e1NTSEF9QlQvOXpGck50cndCK1BhNVp1WlBxOE45K1YxVjBXQ0w=
+homeDirectory: /home/admin
+loginShell: /bin/bash
+structuralObjectClass: inetOrgPerson
+entryUUID: 0df1a7e0-5f5b-1040-8dcc-2d195eef2814
+creatorsName: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+createTimestamp: 20251126213146Z
+entryCSN: 20251126213146.508553Z#000000#000#000000
+modifiersName: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+modifyTimestamp: 20251126213146Z
+
+dn: uid=alice,ou=users,dc=cloud,dc=mes
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: alice
+sn: Smith
+givenName: Alice
+cn: Alice Smith
+displayName: Alice
+uidNumber: 10001
+gidNumber: 10001
+userPassword:: e1NTSEF9ZEdIQjJoZno2MVpoNlJoaUQzVjRRanI1dU1mOXB4VHM=
+homeDirectory: /home/alice
+loginShell: /bin/bash
+structuralObjectClass: inetOrgPerson
+entryUUID: 0df20bf4-5f5b-1040-8dcd-2d195eef2814
+creatorsName: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+createTimestamp: 20251126213146Z
+entryCSN: 20251126213146.511113Z#000000#000#000000
+modifiersName: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+modifyTimestamp: 20251126213146Z
+
+dn: uid=moderator,ou=users,dc=cloud,dc=mes
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: moderator
+sn: Moderator
+givenName: Mod
+cn: Mod Moderator
+displayName: Moderator
+uidNumber: 10002
+gidNumber: 10002
+userPassword:: e1NTSEF9QlhCZkRlT0UyY3hibVRscWZ3bE4xZjg3dEVRK2xDSlI=
+homeDirectory: /home/moderator
+loginShell: /bin/bash
+structuralObjectClass: inetOrgPerson
+entryUUID: 0df26f0e-5f5b-1040-8dce-2d195eef2814
+creatorsName: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+createTimestamp: 20251126213146Z
+entryCSN: 20251126213146.513654Z#000000#000#000000
+modifiersName: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+modifyTimestamp: 20251126213146Z
+
+dn: cn=admins,ou=groups,dc=cloud,dc=mes
+objectClass: groupOfNames
+cn: admins
+member: uid=admin,ou=users,dc=cloud,dc=mes
+structuralObjectClass: groupOfNames
+entryUUID: 0df544ae-5f5b-1040-8dcf-2d195eef2814
+creatorsName: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+createTimestamp: 20251126213146Z
+entryCSN: 20251126213146.532229Z#000000#000#000000
+modifiersName: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+modifyTimestamp: 20251126213146Z
+
+dn: cn=moderators,ou=groups,dc=cloud,dc=mes
+objectClass: groupOfNames
+cn: moderators
+member: uid=moderator,ou=users,dc=cloud,dc=mes
+structuralObjectClass: groupOfNames
+entryUUID: 0df5b182-5f5b-1040-8dd0-2d195eef2814
+creatorsName: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+createTimestamp: 20251126213146Z
+entryCSN: 20251126213146.535014Z#000000#000#000000
+modifiersName: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+modifyTimestamp: 20251126213146Z
+
+dn: cn=users,ou=groups,dc=cloud,dc=mes
+objectClass: groupOfNames
+cn: users
+member: uid=alice,ou=users,dc=cloud,dc=mes
+member: uid=admin,ou=users,dc=cloud,dc=mes
+member: uid=moderator,ou=users,dc=cloud,dc=mes
+structuralObjectClass: groupOfNames
+entryUUID: 0df5fa98-5f5b-1040-8dd1-2d195eef2814
+creatorsName: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+createTimestamp: 20251126213146Z
+entryCSN: 20251126213146.536881Z#000000#000#000000
+modifiersName: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+modifyTimestamp: 20251126213146Z
+

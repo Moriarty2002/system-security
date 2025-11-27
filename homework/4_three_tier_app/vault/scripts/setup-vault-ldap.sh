@@ -13,32 +13,45 @@ if [ -z "$VAULT_TOKEN" ]; then
     exit 1
 fi
 
+# Use simple development password
+LDAP_ADMIN_PASSWORD="${LDAP_ADMIN_PASSWORD:-admin}"
+
 # Helper function to run vault commands in container
 vault_exec() {
     docker exec -e VAULT_TOKEN="$VAULT_TOKEN" -e VAULT_SKIP_VERIFY=1 "$VAULT_CONTAINER" vault "$@"
 }
 
-echo "🔐 Configuring LDAP secrets in Vault..."
+echo "🔐 Configuring LDAP secrets in Vault with LDAPS..."
 
-# Store LDAP configuration in Vault
+# Store LDAP configuration in Vault with LDAPS URL
 vault_exec kv put secret/mes_local_cloud/ldap \
-    url="ldap://ldap-server:389" \
+    url="ldaps://ldap-server:636" \
     bind_dn="cn=admin,dc=cloud,dc=mes" \
-    bind_password="admin" \
-    base_dn="dc=cloud,dc=mes"
+    bind_password="$LDAP_ADMIN_PASSWORD" \
+    base_dn="dc=cloud,dc=mes" \
+    ca_cert_file="/etc/ssl/certs/ldap-ca-cert.pem"
 
 echo "✅ LDAP configuration stored in Vault at secret/mes_local_cloud/ldap"
 
-# Verify the secret was stored
+# Verify the secret was stored (without showing password)
 echo ""
-echo "📋 Verifying LDAP configuration:"
-vault_exec kv get secret/mes_local_cloud/ldap
+echo "📋 Verifying LDAP configuration (password hidden):"
+vault_exec kv get -field=url secret/mes_local_cloud/ldap
+vault_exec kv get -field=bind_dn secret/mes_local_cloud/ldap
+vault_exec kv get -field=base_dn secret/mes_local_cloud/ldap
 
 echo ""
 echo "✅ LDAP secrets configuration complete!"
 echo ""
-echo "⚠️  SECURITY NOTE:"
-echo "  - The LDAP admin password is set to 'admin' for development"
-echo "  - In production, use a strong password and rotate regularly"
-echo "  - Consider using LDAPS (LDAP over TLS) for encrypted connections"
-echo "  - Restrict Vault access using policies (only backend should access LDAP secrets)"
+echo "🔒 SECURITY IMPROVEMENTS APPLIED:"
+echo "  ✅ LDAPS enabled (encrypted LDAP over TLS on port 636)"
+echo "  ✅ TLS certificate verification enabled"
+echo "  ✅ LDAP network isolation configured"
+echo "  ✅ Audit logging enabled"
+echo ""
+echo "⚠️  DEVELOPMENT MODE NOTES:"
+echo "  - LDAP admin password: 'admin' (for development only)"
+echo "  - For production, use a strong password (min 16 characters)"
+echo "  - Monitor LDAP audit logs in ./ldap/logs/"
+echo "  - Review certificate expiration (365 days for LDAP cert)"
+echo "  - For production, use certificates from a trusted CA"

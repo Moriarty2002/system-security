@@ -21,14 +21,16 @@ logger = logging.getLogger(__name__)
 class LdapClient:
     """LDAP client with Vault-managed credentials."""
 
-    def __init__(self, ldap_url: str, bind_dn: str, bind_password: str, base_dn: str):
+    def __init__(self, ldap_url: str, bind_dn: str, bind_password: str, base_dn: str, 
+                 ca_cert_file: str = '/etc/ssl/certs/ldap-ca-cert.pem'):
         """Initialize LDAP client.
 
         Args:
-            ldap_url: LDAP server URL (e.g., ldap://ldap-server:389)
+            ldap_url: LDAP server URL (e.g., ldaps://ldap-server:636)
             bind_dn: DN to bind as for user lookups
             bind_password: Password for bind DN
             base_dn: Base DN for searches (e.g., dc=cloud,dc=mes)
+            ca_cert_file: Path to CA certificate for TLS verification
         """
         self.ldap_url = ldap_url
         self.bind_dn = bind_dn
@@ -36,11 +38,19 @@ class LdapClient:
         self.base_dn = base_dn
         self.users_ou = f"ou=users,{base_dn}"
         self.groups_ou = f"ou=groups,{base_dn}"
+        self.ca_cert_file = ca_cert_file
 
-        # LDAP connection settings
-        ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
+        # LDAP connection settings with TLS security
+        # IMPORTANT: Enable certificate verification for production security
+        ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND)
+        ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, ca_cert_file)
+        ldap.set_option(ldap.OPT_X_TLS_NEWCTX, 0)  # Apply TLS options
         ldap.set_option(ldap.OPT_REFERRALS, 0)
         ldap.set_option(ldap.OPT_NETWORK_TIMEOUT, 10)
+        ldap.set_option(ldap.OPT_TIMEOUT, 10)
+        
+        # Enable debug logging for TLS issues (can be disabled in production)
+        # ldap.set_option(ldap.OPT_DEBUG_LEVEL, 255)
 
     def _get_connection(self) -> LDAPObject:
         """Create and return a new LDAP connection.
@@ -226,9 +236,13 @@ def get_ldap_client(ldap_config: dict) -> LdapClient:
     if missing:
         raise ValueError(f"LDAP configuration missing required fields: {missing}")
 
+    # Optional CA certificate path (with default)
+    ca_cert_file = ldap_config.get('ca_cert_file', '/etc/ssl/certs/ldap-ca-cert.pem')
+
     return LdapClient(
         ldap_url=ldap_config['url'],
         bind_dn=ldap_config['bind_dn'],
         bind_password=ldap_config['bind_password'],
-        base_dn=ldap_config['base_dn']
+        base_dn=ldap_config['base_dn'],
+        ca_cert_file=ca_cert_file
     )

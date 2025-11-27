@@ -75,10 +75,17 @@ services:
     networks:
       - app_net # Connect to the custom network
       - shared_vault_net # Connect to Vault network
+      - ldap_net # Connect to LDAP network for authentication
     # This service doesn't need 'ports' as it's only accessed
     # by the apache-FE service over the internal 'app_net' network.
     expose:
       - "5000" # Document the internal port (assuming Flask runs on 5000)
+    volumes:
+      # Mount LDAP CA certificate for TLS verification
+      - type: bind
+        source: ./ldap/certs/ca-cert.pem
+        target: /etc/ssl/certs/ldap-ca-cert.pem
+        read_only: true
     depends_on:
       db:
         # Wait for the DB to be fully ready, not just started
@@ -88,38 +95,72 @@ services:
       ldap:
         condition: service_healthy
 
+  # LDAP Account Manager - LDAP Web UI
   # LDAP Server for authentication
   ldap:
-    image: osixia/openldap:1.5.0
+    build: ./ldap
+    image: ldap_with_vault:latest
     container_name: ldap_server
     hostname: ldap-server
+    env_file:
+      - .env
     environment:
       LDAP_ORGANISATION: "MES Local Cloud"
       LDAP_DOMAIN: "cloud.mes"
-      LDAP_ADMIN_PASSWORD: "admin"
-      LDAP_CONFIG_PASSWORD: "config"
+      LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:?LDAP_ADMIN_PASSWORD is required}
+      LDAP_CONFIG_PASSWORD: ${LDAP_CONFIG_PASSWORD:?LDAP_CONFIG_PASSWORD is required}
       LDAP_RFC2307BIS_SCHEMA: "true"
       LDAP_REMOVE_CONFIG_AFTER_SETUP: "false"
-      LDAP_TLS: "false"
-      LDAP_LOG_LEVEL: "256"
+      # TLS Configuration - Vault-managed certificates
+      LDAP_TLS: "true"
+      LDAP_TLS_CRT_FILENAME: "ldap-cert.pem"
+      LDAP_TLS_KEY_FILENAME: "ldap-key.pem"
+      LDAP_TLS_CA_CRT_FILENAME: "ca-cert.pem"
+      LDAP_TLS_DH_PARAM_FILENAME: "dhparam.pem"
+      LDAP_TLS_VERIFY_CLIENT: "try"
+      LDAP_TLS_CIPHER_SUITE: "SECURE256:+SECURE128:-VERS-TLS-ALL:+VERS-TLS1.2:+VERS-TLS1.3"
+      # Logging and Audit
+      LDAP_LOG_LEVEL: "256"  # Log connections, operations, and results
+      LDAP_LOGLEVEL: "stats"  # Additional statistics logging
+      # Vault Configuration (optional - falls back to local certs if not set)
+      VAULT_ADDR: ${VAULT_ADDR:-https://shared_vault_server:8200}
+      VAULT_SKIP_VERIFY: 1
+      LDAP_VAULT_ROLE_ID: ${LDAP_VAULT_ROLE_ID:-}
+      LDAP_VAULT_SECRET_ID: ${LDAP_VAULT_SECRET_ID:-}
+      LDAP_VAULT_AUTH_PATH: ${LDAP_VAULT_AUTH_PATH:-approle}
+      PKI_ENGINE: ${PKI_ENGINE:-pki_localhost}
+      PKI_ROLE: ${LDAP_PKI_ROLE:-ldap-server-localhost}
     volumes:
+      # LDAP data and configuration
       - ldap_data:/var/lib/ldap
       - ldap_config:/etc/ldap/slapd.d
+      # LDIF files for initialization (read-only after container starts)
       - type: bind
         source: ./ldap/ldif
         target: /container/service/slapd/assets/config/bootstrap/ldif/custom
+      # TLS certificates (container needs to read them)
+      - type: bind
+        source: ./ldap/certs
+        target: /container/service/slapd/assets/certs
+      # Audit logs (needs write access)
+      - type: bind
+        source: ./ldap/logs
+        target: /var/log/slapd
+    # Development: Expose only LDAPS (secure) port for management tools
+    # Remove in production for better security
     ports:
-      - "389:389"  # LDAP port (for debugging/management)
-      - "636:636"  # LDAPS port
+      - "636:636"   # LDAPS (TLS encrypted) - Recommended
     restart: unless-stopped
     networks:
-      - app_net
+      - ldap_net  # Dedicated LDAP network for security isolation
+      - app_net   # Access from backend application
+      - shared_vault_net  # Access to Vault for certificate management
     healthcheck:
-      test: ["CMD-SHELL", "ldapsearch -x -H ldap://localhost -b dc=cloud,dc=mes -D 'cn=admin,dc=cloud,dc=mes' -w admin || exit 1"]
+      test: ["CMD-SHELL", "ldapsearch -x -H ldaps://localhost -b dc=cloud,dc=mes -D 'cn=admin,dc=cloud,dc=mes' -w $LDAP_ADMIN_PASSWORD || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 30s
 
   # Layer 3: Database
   db:
@@ -190,6 +231,11 @@ networks:
     driver: bridge
   shared_vault_net:
     external: true
+  ldap_net:
+    driver: bridge
+    internal: false  # Allow outbound connections but isolate LDAP traffic
+    driver_opts:
+      com.docker.network.bridge.name: ldap_bridge
 
 secrets:
   db_password:

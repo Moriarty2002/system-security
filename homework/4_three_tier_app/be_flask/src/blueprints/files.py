@@ -156,7 +156,7 @@ def list_users_for_moderator():
     if role != 'moderator':
         abort(403, description='only moderators can list users')
 
-    users = LdapUser.query.order_by(User.username).all()
+    users = LdapUser.query.order_by(LdapUser.username).all()
     usernames = [u.username for u in users]
 
     return jsonify({'users': usernames})
