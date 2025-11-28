@@ -159,14 +159,5 @@ def authenticate_ldap(username: str, password: str) -> Tuple[bool, Optional[str]
         return False, None, "Authentication service unavailable"
 
 
-def require_admin(role: str) -> None:
-    """Check if user has admin privileges.
-
-    Args:
-        role: User's role
-
-    Raises:
-        403: User is not admin
-    """
-    if role != 'admin':
-        abort(403, description='admin required')
+# Note: Role-based authorization is now handled by XACML PDP/PEP
+# See xacml_pdp.py and xacml_pep.py for authorization logic

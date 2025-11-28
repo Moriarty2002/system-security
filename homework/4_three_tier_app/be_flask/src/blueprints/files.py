@@ -7,6 +7,7 @@ from sqlalchemy import func
 
 from ..auth import authenticate_user
 from ..models import db, LdapUser, BinItem
+from ..xacml_pep import enforce_xacml
 from ..utils_minio import (
     get_user_usage_bytes,
     get_user_files_list,
@@ -26,17 +27,12 @@ ERROR_INVALID_PATH = 'invalid path'
 
 
 @files_bp.route('/upload', methods=['POST'])
+@enforce_xacml('upload')
 def upload_file():
     """Upload a file for the authenticated user."""
     try:
         username, user, role = authenticate_user()
         minio_client = current_app.config['MINIO_CLIENT']
-
-        # Prevent admin and moderator users from uploading files
-        user_role = role
-        if user_role not in ['user']:
-            logger.warning(f"{user_role.title()} user {username} attempted to upload file")
-            return jsonify({'error': f'{user_role}s cannot upload files'}), 403
 
         if 'file' not in request.files:
             logger.warning(f"User {username} attempted upload without file")
@@ -109,20 +105,14 @@ def upload_file():
 
 
 @files_bp.route('/files', methods=['GET'])
+@enforce_xacml('list')
 def list_files():
     """List files for user (or another user if moderator)."""
     username, user, role = authenticate_user()
     minio_client = current_app.config['MINIO_CLIENT']
 
-    # Prevent admin users from listing files
-    if role == 'admin':
-        logger.warning(f"Admin user {username} attempted to list files")
-        abort(403, description='admins cannot access file listings')
-
-    # Allow moderators to view other users' file lists via ?user=<username>
+    # Get target user from query parameter or default to authenticated user
     target = request.args.get('user') or username
-    if target != username and role != 'moderator':
-        abort(403, description='insufficient role to view other users')
 
     subpath = request.args.get('path', '').strip()
     if subpath.startswith('/') or '..' in subpath:
@@ -148,13 +138,10 @@ def list_files():
 
 
 @files_bp.route('/users', methods=['GET'])
+@enforce_xacml('list-users')
 def list_users_for_moderator():
     """List all usernames (moderator only)."""
     _, user, role = authenticate_user()
-
-    # Only moderators can access this endpoint
-    if role != 'moderator':
-        abort(403, description='only moderators can list users')
 
     users = LdapUser.query.order_by(LdapUser.username).all()
     usernames = [u.username for u in users]
@@ -163,20 +150,14 @@ def list_users_for_moderator():
 
 
 @files_bp.route('/files/<filename>', methods=['GET'])
+@enforce_xacml('download')
 def download_file(filename):
     """Download a file."""
     username, user, role = authenticate_user()
     minio_client = current_app.config['MINIO_CLIENT']
 
-    # Prevent admin users from downloading files
-    if role == 'admin':
-        logger.warning(f"Admin user {username} attempted to download file")
-        abort(403, description='admins cannot download files')
-
-    # Allow moderators to download other users' files via ?user=<username>
+    # Get target user from query parameter or default to authenticated user
     target = request.args.get('user') or username
-    if target != username and role != 'moderator':
-        abort(403, description='insufficient role to download other users files')
 
     # Get path from query parameter
     subpath = request.args.get('path', '').strip()
@@ -206,20 +187,14 @@ def download_file(filename):
 
 
 @files_bp.route('/files/<filename>', methods=['DELETE'])
+@enforce_xacml('delete')
 def delete_file(filename):
     """Move a file or directory to bin."""
     username, user, role = authenticate_user()
     minio_client = current_app.config['MINIO_CLIENT']
 
-    # Prevent admin users from deleting files
-    if role == 'admin':
-        logger.warning(f"Admin user {username} attempted to delete file")
-        abort(403, description='admins cannot delete files')
-
-    # Deletions only allowed by owner
+    # Get target user (only owner can delete, enforced by XACML)
     target = request.args.get('user') or username
-    if target != username:
-        abort(403, description='only owner can delete files')
 
     # Get path from query parameter
     subpath = request.args.get('path', '').strip()
@@ -271,17 +246,12 @@ def delete_file(filename):
 
 
 @files_bp.route('/mkdir', methods=['POST'])
+@enforce_xacml('mkdir')
 def create_directory():
     """Create a directory for the authenticated user."""
     try:
         username, user, role = authenticate_user()
         minio_client = current_app.config['MINIO_CLIENT']
-
-        # Prevent admin and moderator users from creating directories
-        user_role = role
-        if user_role not in ['user']:
-            logger.warning(f"{user_role.title()} user {username} attempted to create directory")
-            return jsonify({'error': f'{user_role}s cannot create directories'}), 403
 
         data = request.get_json()
         if not data or 'path' not in data:
@@ -320,29 +290,21 @@ def create_directory():
 
 
 @files_bp.route('/bin', methods=['GET'])
+@enforce_xacml('bin')
 def list_bin():
     """List items in user's bin."""
     username, user, role = authenticate_user()
-
-    # Prevent admin users from accessing bin
-    if role == 'admin':
-        logger.warning(f"Admin user {username} attempted to access bin")
-        abort(403, description='admins cannot access bin')
 
     bin_items = get_user_bin_items(username)
     return jsonify({'bin_items': bin_items})
 
 
 @files_bp.route('/bin/<int:item_id>/restore', methods=['POST'])
+@enforce_xacml('bin')
 def restore_from_bin_endpoint(item_id):
     """Restore an item from bin."""
     username, user, role = authenticate_user()
     minio_client = current_app.config['MINIO_CLIENT']
-
-    # Prevent admin users from restoring from bin
-    if role == 'admin':
-        logger.warning(f"Admin user {username} attempted to restore from bin")
-        abort(403, description='admins cannot restore from bin')
 
     try:
         success = restore_from_bin(item_id, username, minio_client)
@@ -357,15 +319,11 @@ def restore_from_bin_endpoint(item_id):
 
 
 @files_bp.route('/bin/<int:item_id>', methods=['DELETE'])
+@enforce_xacml('bin')
 def permanently_delete_from_bin_endpoint(item_id):
     """Permanently delete an item from bin."""
     username, user, role = authenticate_user()
     minio_client = current_app.config['MINIO_CLIENT']
-
-    # Prevent admin users from permanently deleting from bin
-    if role == 'admin':
-        logger.warning(f"Admin user {username} attempted to permanently delete from bin")
-        abort(403, description='admins cannot permanently delete from bin')
 
     try:
         success = permanently_delete_from_bin(item_id, username, minio_client)
@@ -380,13 +338,11 @@ def permanently_delete_from_bin_endpoint(item_id):
 
 
 @files_bp.route('/bin/cleanup', methods=['POST'])
+@enforce_xacml('cleanup-bin')
 def cleanup_bin():
     """Clean up expired bin items (admin only)."""
     username, user, role = authenticate_user()
     minio_client = current_app.config['MINIO_CLIENT']
-
-    if role != 'admin':
-        abort(403, description='only admins can cleanup bin')
 
     try:
         cleaned_count = cleanup_expired_bin_items(minio_client)

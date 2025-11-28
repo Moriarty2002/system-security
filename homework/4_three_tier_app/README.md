@@ -4,6 +4,7 @@ A production-ready web application with enterprise-grade secrets management usin
 
 ## 🔐 Security Features
 
+- **XACML Authorization**: Policy-based access control using XACML 3.0 standard
 - **LDAP Authentication**: Centralized user authentication via OpenLDAP
 - **No Password Storage**: Application never stores user passwords
 - **HashiCorp Vault Integration**: All secrets (including LDAP credentials) managed by Vault
@@ -14,7 +15,7 @@ A production-ready web application with enterprise-grade secrets management usin
 - **MinIO Security**: Dedicated application user with bucket-only access
 - **Docker Secrets**: Sensitive data passed via Docker secrets API
 - **Network Isolation**: Separate networks for Vault and application
-- **Role-Based Access Control**: Roles determined by LDAP group membership
+- **Fine-Grained Access Control**: XACML policies with attribute-based conditions
 - **Least Privilege**: Minimal container capabilities and permissions
 
 ## 🏗️ Architecture
@@ -36,13 +37,15 @@ A production-ready web application with enterprise-grade secrets management usin
 - MinIO object storage (S3-compatible)
 - Connects to shared Vault for secrets
 
-**3. Authentication Flow**
+**3. Authentication & Authorization Flow**
 - User submits credentials to backend
 - Backend authenticates against LDAP server
 - LDAP verifies credentials and returns user info
 - Backend queries LDAP for group membership (roles)
 - Backend issues JWT token with user's role
-- Subsequent requests validated via JWT
+- **XACML PDP evaluates access requests against policies**
+- **XACML PEP enforces authorization decisions**
+- Subsequent requests validated via JWT and XACML policies
 
 This separation enables:
 - ✅ Centralized authentication across multiple applications
@@ -449,10 +452,14 @@ vault kv get secret/database/postgres
 
 ## 📖 Additional Resources
 
+- [XACML Integration Documentation](XACML_INTEGRATION.md) - **Complete guide to XACML authorization**
+- [XACML Quick Reference](xacml/XACML_QUICK_REFERENCE.md) - **Quick access control matrix and test commands**
+- [LDAP Integration Guide](LDAP_INTEGRATION.md) - Setup and management of LDAP authentication
 - [HashiCorp Vault Documentation](https://www.vaultproject.io/docs)
 - [AppRole Authentication](https://www.vaultproject.io/docs/auth/approle)
 - [Docker Secrets](https://docs.docker.com/engine/swarm/secrets/)
 - [Flask Security Best Practices](https://flask.palletsprojects.com/en/2.3.x/security/)
+- [OASIS XACML 3.0 Specification](http://docs.oasis-open.org/xacml/3.0/xacml-3.0-core-spec-os-en.html)
 
 ## 🤝 Contributing
 

@@ -1,17 +1,18 @@
 from flask import Blueprint, jsonify, request, current_app
 
-from ..auth import authenticate_user, require_admin
+from ..auth import authenticate_user
 from ..models import db, LdapUser
 from ..utils_minio import get_user_usage_bytes
+from ..xacml_pep import enforce_xacml, require_xacml_permission
 
 admin_bp = Blueprint('admin', __name__)
 
 
 @admin_bp.route('/users', methods=['GET'])
+@enforce_xacml('admin-list-users')
 def list_users():
     """List all users with their details (admin only)."""
     _, user, role = authenticate_user()
-    require_admin(role)
     
     minio_client = current_app.config['MINIO_CLIENT']
     ldap_client = current_app.config['LDAP_CLIENT']
@@ -40,8 +41,7 @@ def create_user():
 @admin_bp.route('/users/<username>/quota', methods=['PUT'])
 def update_quota(username):
     """Update user quota (admin only)."""
-    _, user, role = authenticate_user()
-    require_admin(role)
+    current_username, user, role = authenticate_user()
 
     target_user = LdapUser.query.get(username)
     if not target_user:
@@ -51,9 +51,13 @@ def update_quota(username):
     ldap_client = current_app.config['LDAP_CLIENT']
     target_role = ldap_client.get_user_role(username)
     
-    # Prevent setting quotas for admin and moderator users
-    if target_role in ('admin', 'moderator'):
-        return jsonify({'error': f'cannot set quota for {target_role} users'}), 403
+    # Check XACML authorization with target user's role
+    require_xacml_permission(
+        username=current_username,
+        role=role,
+        action='update-quota',
+        target_role=target_role
+    )
 
     data = request.json or {}
     try:

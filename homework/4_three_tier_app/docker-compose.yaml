@@ -86,6 +86,11 @@ services:
         source: ./ldap/certs/ca-cert.pem
         target: /etc/ssl/certs/ldap-ca-cert.pem
         read_only: true
+      # Mount XACML policies
+      - type: bind
+        source: ./xacml
+        target: /app/xacml
+        read_only: true
     depends_on:
       db:
         # Wait for the DB to be fully ready, not just started

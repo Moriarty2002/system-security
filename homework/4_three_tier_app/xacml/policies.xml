@@ -1,0 +1,448 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PolicySet xmlns="urn:oasis:names:tc:xacml:3.0:core:schema:wd-17"
+           PolicySetId="file-storage-policies"
+           PolicyCombiningAlgId="urn:oasis:names:tc:xacml:3.0:policy-combining-algorithm:deny-overrides"
+           Version="1.0">
+    
+    <Description>XACML Policies for Three-Tier File Storage Application</Description>
+    
+    <Target/>
+    
+    <!-- Policy 1: User File Operations -->
+    <Policy PolicyId="user-file-operations"
+            RuleCombiningAlgId="urn:oasis:names:tc:xacml:3.0:rule-combining-algorithm:deny-overrides"
+            Version="1.0">
+        
+        <Description>Allow users to manage their own files</Description>
+        
+        <Target>
+            <AnyOf>
+                <AllOf>
+                    <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">user</AttributeValue>
+                        <AttributeDesignator AttributeId="role"
+                                           Category="urn:oasis:names:tc:xacml:1.0:subject-category:access-subject"
+                                           DataType="http://www.w3.org/2001/XMLSchema#string"
+                                           MustBePresent="true"/>
+                    </Match>
+                </AllOf>
+            </AnyOf>
+        </Target>
+        
+        <!-- Rule: Users can upload files -->
+        <Rule RuleId="user-can-upload" Effect="Permit">
+            <Description>Users can upload files to their own storage</Description>
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">upload</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+        </Rule>
+        
+        <!-- Rule: Users can list their own files -->
+        <Rule RuleId="user-can-list-own-files" Effect="Permit">
+            <Description>Users can list their own files</Description>
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">list</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+            <Condition>
+                <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                    <AttributeDesignator AttributeId="username"
+                                       Category="urn:oasis:names:tc:xacml:1.0:subject-category:access-subject"
+                                       DataType="http://www.w3.org/2001/XMLSchema#string"
+                                       MustBePresent="true"/>
+                    <AttributeDesignator AttributeId="resource-owner"
+                                       Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+                                       DataType="http://www.w3.org/2001/XMLSchema#string"
+                                       MustBePresent="true"/>
+                </Apply>
+            </Condition>
+        </Rule>
+        
+        <!-- Rule: Users can download their own files -->
+        <Rule RuleId="user-can-download-own-files" Effect="Permit">
+            <Description>Users can download their own files</Description>
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">download</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+            <Condition>
+                <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                    <AttributeDesignator AttributeId="username"
+                                       Category="urn:oasis:names:tc:xacml:1.0:subject-category:access-subject"
+                                       DataType="http://www.w3.org/2001/XMLSchema#string"
+                                       MustBePresent="true"/>
+                    <AttributeDesignator AttributeId="resource-owner"
+                                       Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+                                       DataType="http://www.w3.org/2001/XMLSchema#string"
+                                       MustBePresent="true"/>
+                </Apply>
+            </Condition>
+        </Rule>
+        
+        <!-- Rule: Users can delete their own files -->
+        <Rule RuleId="user-can-delete-own-files" Effect="Permit">
+            <Description>Users can delete their own files</Description>
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">delete</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+            <Condition>
+                <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                    <AttributeDesignator AttributeId="username"
+                                       Category="urn:oasis:names:tc:xacml:1.0:subject-category:access-subject"
+                                       DataType="http://www.w3.org/2001/XMLSchema#string"
+                                       MustBePresent="true"/>
+                    <AttributeDesignator AttributeId="resource-owner"
+                                       Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+                                       DataType="http://www.w3.org/2001/XMLSchema#string"
+                                       MustBePresent="true"/>
+                </Apply>
+            </Condition>
+        </Rule>
+        
+        <!-- Rule: Users can create directories -->
+        <Rule RuleId="user-can-create-directory" Effect="Permit">
+            <Description>Users can create directories</Description>
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">mkdir</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+        </Rule>
+        
+        <!-- Rule: Users can manage their bin -->
+        <Rule RuleId="user-can-manage-bin" Effect="Permit">
+            <Description>Users can list, restore, and permanently delete from their bin</Description>
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">bin</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+        </Rule>
+    </Policy>
+    
+    <!-- Policy 2: Moderator Operations -->
+    <Policy PolicyId="moderator-operations"
+            RuleCombiningAlgId="urn:oasis:names:tc:xacml:3.0:rule-combining-algorithm:deny-overrides"
+            Version="1.0">
+        
+        <Description>Allow moderators to view and download all users' files</Description>
+        
+        <Target>
+            <AnyOf>
+                <AllOf>
+                    <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">moderator</AttributeValue>
+                        <AttributeDesignator AttributeId="role"
+                                           Category="urn:oasis:names:tc:xacml:1.0:subject-category:access-subject"
+                                           DataType="http://www.w3.org/2001/XMLSchema#string"
+                                           MustBePresent="true"/>
+                    </Match>
+                </AllOf>
+            </AnyOf>
+        </Target>
+        
+        <!-- Rule: Moderators can list any user's files -->
+        <Rule RuleId="moderator-can-list-all-files" Effect="Permit">
+            <Description>Moderators can list any user's files</Description>
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">list</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+        </Rule>
+        
+        <!-- Rule: Moderators can download any user's files -->
+        <Rule RuleId="moderator-can-download-all-files" Effect="Permit">
+            <Description>Moderators can download any user's files</Description>
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">download</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+        </Rule>
+        
+        <!-- Rule: Moderators can list all users -->
+        <Rule RuleId="moderator-can-list-users" Effect="Permit">
+            <Description>Moderators can list all users</Description>
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">list-users</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+        </Rule>
+        
+        <!-- Rule: Moderators cannot upload files -->
+        <Rule RuleId="moderator-cannot-upload" Effect="Deny">
+            <Description>Moderators cannot upload files</Description>
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">upload</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+        </Rule>
+        
+        <!-- Rule: Moderators cannot create directories -->
+        <Rule RuleId="moderator-cannot-mkdir" Effect="Deny">
+            <Description>Moderators cannot create directories</Description>
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">mkdir</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+        </Rule>
+    </Policy>
+    
+    <!-- Policy 3: Admin Operations -->
+    <Policy PolicyId="admin-operations"
+            RuleCombiningAlgId="urn:oasis:names:tc:xacml:3.0:rule-combining-algorithm:deny-overrides"
+            Version="1.0">
+        
+        <Description>Allow admins to manage users and quotas</Description>
+        
+        <Target>
+            <AnyOf>
+                <AllOf>
+                    <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                        <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">admin</AttributeValue>
+                        <AttributeDesignator AttributeId="role"
+                                           Category="urn:oasis:names:tc:xacml:1.0:subject-category:access-subject"
+                                           DataType="http://www.w3.org/2001/XMLSchema#string"
+                                           MustBePresent="true"/>
+                    </Match>
+                </AllOf>
+            </AnyOf>
+        </Target>
+        
+        <!-- Rule: Admins can list all users -->
+        <Rule RuleId="admin-can-list-users" Effect="Permit">
+            <Description>Admins can list all users</Description>
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">admin-list-users</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+        </Rule>
+        
+        <!-- Rule: Admins can update user quotas -->
+        <Rule RuleId="admin-can-update-quota" Effect="Permit">
+            <Description>Admins can update user quotas</Description>
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">update-quota</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+            <Condition>
+                <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:not">
+                    <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:or">
+                        <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeDesignator AttributeId="target-role"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="false"/>
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">admin</AttributeValue>
+                        </Apply>
+                        <Apply FunctionId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeDesignator AttributeId="target-role"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="false"/>
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">moderator</AttributeValue>
+                        </Apply>
+                    </Apply>
+                </Apply>
+            </Condition>
+        </Rule>
+        
+        <!-- Rule: Admins can cleanup bin -->
+        <Rule RuleId="admin-can-cleanup-bin" Effect="Permit">
+            <Description>Admins can cleanup expired bin items</Description>
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">cleanup-bin</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+        </Rule>
+        
+        <!-- Rule: Admins cannot access file operations -->
+        <Rule RuleId="admin-cannot-access-files" Effect="Deny">
+            <Description>Admins cannot access file operations</Description>
+            <Target>
+                <AnyOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">upload</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">download</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">list</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">delete</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">mkdir</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                    <AllOf>
+                        <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+                            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">bin</AttributeValue>
+                            <AttributeDesignator AttributeId="action"
+                                               Category="urn:oasis:names:tc:xacml:3.0:attribute-category:action"
+                                               DataType="http://www.w3.org/2001/XMLSchema#string"
+                                               MustBePresent="true"/>
+                        </Match>
+                    </AllOf>
+                </AnyOf>
+            </Target>
+        </Rule>
+    </Policy>
+    
+</PolicySet>
