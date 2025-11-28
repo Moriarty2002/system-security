@@ -1,10 +1,10 @@
-# Ignore all certificate files for security
-*.pem
-*.key
-*.crt
-*.csr
-*.srl
-*.cnf
+# # Ignore all certificate files for security
+# *.pem
+# *.key
+# *.crt
+# *.csr
+# *.srl
+# *.cnf
 
-# Keep the directory structure
-!.gitignore
+# # Keep the directory structure
+# !.gitignore
