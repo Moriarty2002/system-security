@@ -1,0 +1,109 @@
+version: '3.8'
+
+# Keycloak Infrastructure - Centralized Authentication Service
+# This is a shared service that can be used by multiple applications
+# Similar to vault-infrastructure, this runs independently
+
+services:
+  # PostgreSQL database for Keycloak
+  keycloak_db:
+    image: postgres:14-alpine
+    container_name: shared_keycloak_db
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      # Password fetched from Vault - using same mechanism as Keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?KEYCLOAK_DB_PASSWORD is required}
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data
+    networks:
+      - keycloak_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Keycloak - Identity and Access Management
+  keycloak:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: keycloak-vault-integrated:23.0
+    container_name: shared-keycloak-server
+    command: start-dev
+    environment:
+      # Vault configuration
+      VAULT_ADDR: https://shared_vault_server:8200
+      VAULT_ROLE_ID: ${VAULT_ROLE_ID:?VAULT_ROLE_ID is required}
+      VAULT_SECRET_ID: ${VAULT_SECRET_ID:?VAULT_SECRET_ID is required}
+      
+      # Database configuration (values will be fetched from Vault by entrypoint)
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak_db:5432/keycloak
+      # KC_DB_USERNAME, KC_DB_PASSWORD, KC_DB set by entrypoint script
+      
+      # Hostname configuration
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_BACKCHANNEL: false
+      
+      # HTTPS configuration (conditionally enabled if certificates exist)
+      KC_HTTPS_PORT: 8443
+      
+      # HTTP configuration
+      # KC_HTTP_ENABLED: true
+      # KC_HTTP_PORT: 8080
+      
+      # Health and metrics
+      KC_HEALTH_ENABLED: true
+      KC_METRICS_ENABLED: true
+      
+      # Admin credentials (set by entrypoint script from Vault)
+      # KEYCLOAK_ADMIN, KEYCLOAK_ADMIN_PASSWORD set by entrypoint script
+      
+      # Logging
+      KC_LOG_LEVEL: INFO
+      KC_LOG_CONSOLE_OUTPUT: default
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    networks:
+      keycloak_net:
+        aliases:
+          - shared-keycloak-server
+      vault_net:
+    depends_on:
+      keycloak_db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  keycloak_net:
+    name: shared_keycloak_network
+    driver: bridge
+  vault_net:
+    external: true
+    name: shared_vault_net
+
+volumes:
+  keycloak_db_data:
+    name: shared_keycloak_db_data
+

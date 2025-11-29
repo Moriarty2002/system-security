@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Keycloak SSO Check</title>
+</head>
+<body>
+    <script id="keycloak-sso-loader">
+        // This page is used by Keycloak for silent SSO checks
+        (async function() {
+            try {
+                const response = await fetch('/api/auth/config');
+                const config = await response.json();
+                const script = document.createElement('script');
+                script.src = config.server_url + '/js/keycloak.js';
+                script.onload = function() {
+                    var keycloak = new Keycloak({
+                        url: config.server_url,
+                        realm: config.realm,
+                        clientId: config.client_id
+                    });
+                    keycloak.init({
+                        onLoad: 'check-sso',
+                        silentCheckSsoRedirectUri: window.location.origin + window.location.pathname,
+                        pkceMethod: 'S256'
+                    });
+                };
+                document.head.appendChild(script);
+            } catch(e) {
+                console.error('SSO check failed:', e);
+            }
+        })();
+    </script>
+</body>
+</html>

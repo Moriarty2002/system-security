@@ -1,9 +1,11 @@
-// Shared frontend helpers for the Local Cloud app
+// Shared frontend helpers for the Local Cloud app with Keycloak integration
 // Keep this file dependency-free and usable via a simple <script> include.
 (function(global){
-    // In-memory token storage (no localStorage)
-    // let accessToken = null;
+    // Keycloak configuration (loaded from backend)
+    let keycloakConfig = null;
+    let keycloak = null;
 
+    // Token management
     function getToken(){ return sessionStorage.getItem('access_token') }
     function setToken(t){ if(t) sessionStorage.setItem('access_token', t) }
     function removeToken(){ sessionStorage.removeItem('access_token') }
@@ -14,6 +16,94 @@
         if (t) h['Authorization'] = 'Bearer ' + t;
         if (includeJson) h['Content-Type'] = 'application/json';
         return h;
+    }
+
+    // Load Keycloak configuration from backend
+    async function loadKeycloakConfig() {
+        if (keycloakConfig) return keycloakConfig;
+        try {
+            const r = await fetch('/api/auth/config');
+            if (!r.ok) throw new Error('Failed to load Keycloak config');
+            keycloakConfig = await r.json();
+            return keycloakConfig;
+        } catch(e) {
+            console.error('Failed to load Keycloak config:', e);
+            return null;
+        }
+    }
+
+    // Initialize Keycloak adapter
+    async function initKeycloak() {
+        if (keycloak) return keycloak;
+        
+        const config = await loadKeycloakConfig();
+        if (!config) {
+            console.error('Cannot initialize Keycloak without configuration');
+            return null;
+        }
+
+        // Check if we have Keycloak JS library loaded
+        if (typeof Keycloak === 'undefined') {
+            console.error('Keycloak JS library not loaded');
+            return null;
+        }
+
+        keycloak = new Keycloak({
+            url: config.server_url,
+            realm: config.realm,
+            clientId: config.client_id
+        });
+
+        try {
+            const authenticated = await keycloak.init({
+                onLoad: 'check-sso',
+                silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
+                pkceMethod: 'S256'
+            });
+
+            if (authenticated) {
+                setToken(keycloak.token);
+                
+                // Setup token refresh
+                keycloak.onTokenExpired = () => {
+                    keycloak.updateToken(30).then(refreshed => {
+                        if (refreshed) {
+                            setToken(keycloak.token);
+                        }
+                    }).catch(() => {
+                        console.error('Failed to refresh token');
+                        logout();
+                    });
+                };
+            }
+
+            return keycloak;
+        } catch(e) {
+            console.error('Failed to initialize Keycloak:', e);
+            return null;
+        }
+    }
+
+    // Login via Keycloak
+    async function login() {
+        const kc = await initKeycloak();
+        if (kc) {
+            kc.login();
+        } else {
+            alert('Authentication service unavailable. Please try again later.');
+        }
+    }
+
+    // Logout via Keycloak
+    async function logout() {
+        removeToken();
+        const kc = await initKeycloak();
+        if (kc && kc.authenticated) {
+            kc.logout();
+        } else {
+            // Fallback if Keycloak not available
+            window.location.href = '/index.html';
+        }
     }
 
     async function whoami(){
@@ -137,6 +227,8 @@
 
     // Expose helpers
     global.appCommon = {
-        getToken, setToken, removeToken, headers, whoami, redirectToRole, downloadBlobResponse, createThemeToggle, formatBytes, parseBytes, createUnitSelector, getDisplayUnit, setDisplayUnit
+        getToken, setToken, removeToken, headers, whoami, redirectToRole, downloadBlobResponse,
+        createThemeToggle, formatBytes, parseBytes, createUnitSelector, getDisplayUnit, setDisplayUnit,
+        login, logout, initKeycloak, loadKeycloakConfig
     };
 })(window);

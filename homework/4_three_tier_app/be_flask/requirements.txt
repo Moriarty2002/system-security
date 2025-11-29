@@ -4,7 +4,10 @@ Werkzeug>=2.0
 # Database
 Flask-SQLAlchemy>=3.0
 psycopg2-binary>=2.9
-PyJWT>=2.0
+# Keycloak authentication
+PyJWT>=2.8.0
+cryptography>=41.0.0
+requests>=2.31.0
 # HashiCorp Vault client
 hvac>=1.2.1
 # MinIO (S3-compatible object storage)

@@ -5,7 +5,7 @@ from flask import Blueprint, jsonify, request, send_file, abort, current_app
 from werkzeug.utils import secure_filename
 from sqlalchemy import func
 
-from ..auth import authenticate_user
+from ..keycloak_auth import authenticate_user
 from ..models import db, User, BinItem
 from ..utils_minio import (
     get_user_usage_bytes,

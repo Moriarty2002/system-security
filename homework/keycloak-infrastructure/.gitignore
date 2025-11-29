@@ -1,0 +1,37 @@
+# Secrets directory
+secrets/
+
+# AppRole credentials
+scripts/approle-credentials.txt
+
+# Logs
+logs/*.log
+
+# Certificates
+certs/
+*.crt
+*.key
+*.pem
+*.csr
+
+# Backup directory
+backups/
+
+# Docker volumes (if using bind mounts)
+data/
+
+# Environment files with sensitive data
+.env
+.env.local
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.swp
+*~

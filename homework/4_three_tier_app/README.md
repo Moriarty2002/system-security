@@ -1,13 +1,18 @@
-# Secure File Storage Service with HashiCorp Vault
+# Secure File Storage Service with Keycloak & HashiCorp Vault
 
-A production-ready web application with enterprise-grade secrets management using HashiCorp Vault.
+A production-ready web application with enterprise-grade identity management (Keycloak) and secrets management (HashiCorp Vault).
 
 ## 🔐 Security Features
 
+- **Keycloak Authentication**: Enterprise-grade identity and access management
+  - OpenID Connect (OIDC) protocol
+  - No passwords stored in application database
+  - Single Sign-On (SSO) support
+  - Centralized user management
 - **HashiCorp Vault Integration**: All secrets managed by Vault
 - **No Hardcoded Credentials**: Zero secrets in code or config files
 - **AppRole Authentication**: Secure machine-to-machine authentication
-- **JWT Token Security**: Signing keys rotated and managed by Vault
+- **Token Security**: RS256 signed tokens validated with Keycloak public keys
 - **Database Security**: Credentials stored and rotated in Vault
 - **MinIO Security**: Dedicated application user with bucket-only access
 - **Docker Secrets**: Sensitive data passed via Docker secrets API
@@ -16,7 +21,7 @@ A production-ready web application with enterprise-grade secrets management usin
 
 ## 🏗️ Architecture
 
-### Two-Tier Infrastructure
+### Three-Tier Infrastructure
 
 **1. Shared Vault Infrastructure** (Independent, at homework/vault-infrastructure/)
 - HashiCorp Vault server
@@ -25,20 +30,26 @@ A production-ready web application with enterprise-grade secrets management usin
 - Audit logging
 - **Shared by multiple applications**
 
-**2. Application Stack** (This project: 4_three_tier_app)
+**2. Identity Management** (Keycloak)
+- User authentication and authorization
+- OpenID Connect provider
+- Role-based access control
+- User federation support
+
+**3. Application Stack** (This project: 4_three_tier_app)
 - Apache HTTPS frontend
-- Flask API backend
-- PostgreSQL database
+- Flask API backend with Keycloak integration
+- PostgreSQL database (shared with Keycloak)
 - MinIO object storage (S3-compatible)
 - Connects to shared Vault for secrets
 
 This separation enables:
 - ✅ Independent Vault lifecycle
-- ✅ Multiple applications sharing the same Vault instance
+- ✅ Centralized identity management
+- ✅ Multiple applications sharing infrastructure
 - ✅ Production deployment on separate hosts
 - ✅ Enhanced security through isolation
 - ✅ Real-world architecture simulation
-- ✅ Scalable object storage for user files
 
 ## 🚀 Quick Start
 
@@ -57,13 +68,12 @@ sleep 10
 # Initialize and configure Vault
 cd scripts
 ./init-vault.sh
-./init-vault.sh
 cd ../../4_three_tier_app
 ```
 
 **⚠️ IMPORTANT**: The script creates `vault-keys.json` with unseal keys in `../vault-infrastructure/scripts/`. **Keep this file secure and backed up!**
 
-### Step 2: Configure This Application in Vault
+### Step 2: Configure Application Secrets in Vault
 
 ```bash
 # Configure application-specific secrets and policies
@@ -78,49 +88,122 @@ This script:
 - Stores secrets at `secret/mes_local_cloud/`
 - Creates database initialization script with hashed passwords
 
-### Step 3: Reset Database (First Time Setup)
+### Step 3: Configure Keycloak in Vault
 
-Since the database init script was just generated, you need to reset the database:
+```bash
+# Configure Keycloak secrets and credentials
+cd vault/scripts
+./setup-keycloak-vault.sh
+cd ../..
+```
+
+This script:
+- Generates secure Keycloak admin credentials
+- Stores configuration in Vault
+- Updates environment variables
+- Configures database access for Keycloak
+
+**⚠️ SAVE THE KEYCLOAK ADMIN PASSWORD** displayed by the script!
+
+### Step 4: Reset Database (First Time Setup)
+
+Since the database init scripts were just generated, reset the database:
 
 ```bash
 # Stop services and remove database volume
 docker compose down -v
 docker volume rm 4_three_tier_app_pg_data 2>/dev/null || true
 
-# This ensures the init script runs when database starts
+# This ensures the init scripts run when database starts
 ```
 
-### Step 4: Start Application
+### Step 5: Start Application
 
 ```bash
 # Start the application stack (from 4_three_tier_app directory)
 docker compose up -d
 
-# Verify Vault integration
-docker compose logs backend | grep Vault
+# Verify services are running
+docker compose ps
 
-# Expected output:
-# ✅ Vault integration enabled - secrets managed by Vault
+# Check logs
+docker compose logs -f keycloak
+docker compose logs -f backend
 ```
 
-### Step 5: Access the Application
+### Step 6: Configure Keycloak
+
+1. **Access Keycloak Admin Console**
+   - URL: http://localhost:8080
+   - Username: `admin`
+   - Password: (from setup-keycloak-vault.sh output)
+
+2. **Create Realm**
+   - Click "Create Realm"
+   - Name: `mes-local-cloud`
+   - Save
+
+3. **Create Client**
+   - Go to Clients → Create client
+   - Client ID: `mes-local-cloud-api`
+   - Protocol: `openid-connect`
+   - Client authentication: OFF (public client)
+   - Standard flow: ON
+   - Direct access grants: ON
+   - Valid redirect URIs: `http://localhost/*`
+   - Web origins: `http://localhost`
+   - Save
+
+4. **Create Roles**
+   - Go to Realm roles → Create role
+   - Create: `admin`, `moderator`, `user`
+
+5. **Create Users**
+   - Go to Users → Add user
+   - Create users and assign roles
+   - Set passwords (Credentials tab)
+   - Example users: admin, moderator, alice
+
+### Step 7: Access the Application
 
 - **Application**: https://localhost (or http://localhost)
-- **Vault UI**: http://localhost:8200
-- **MinIO Console**: http://localhost:9001 (credentials: minioadmin/minioadmin)
-- **API**: http://localhost:5000
+- **Keycloak Admin**: http://localhost:8080
+- **MinIO Console**: http://localhost:9001
 
-**Default Users** (passwords managed by Vault):
-- admin / admin123
-- alice / alice123  
-- moderator / moderator123
+**Authentication**: Click "Login with Keycloak" and use your Keycloak credentials!
 
 ## 📚 Documentation
 
-- **[VAULT_INTEGRATION.md](VAULT_INTEGRATION.md)** - Complete Vault setup and management guide
-- **[.env.example](.env.example)** - Environment configuration template
+- **[KEYCLOAK_MIGRATION.md](./KEYCLOAK_MIGRATION.md)** - Detailed Keycloak integration guide
+- **[QUICK_SETUP_project+vault.md](./QUICK_SETUP_project+vault.md)** - Condensed setup instructions
 
-## 🗄️ Storage Architecture
+## 🔑 Authentication Flow
+
+1. User clicks "Login with Keycloak" on frontend
+2. Frontend redirects to Keycloak login page
+3. User enters credentials in Keycloak
+4. Keycloak validates and returns JWT token
+5. Frontend stores token and makes API requests
+6. Backend validates token with Keycloak public keys
+7. Backend creates/updates user profile on first login
+8. Backend synchronizes roles from Keycloak
+
+## 🗄️ Database Schema
+
+### User Profiles (Keycloak-based)
+```sql
+CREATE TABLE user_profiles (
+    keycloak_id UUID PRIMARY KEY,
+    username VARCHAR(128) UNIQUE NOT NULL,
+    role VARCHAR(32) NOT NULL DEFAULT 'user',
+    quota BIGINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Legacy Users Table
+The original `users` table with `password_hash` is preserved but **not used**. All authentication is handled by Keycloak.
 
 ### MinIO Object Storage
 

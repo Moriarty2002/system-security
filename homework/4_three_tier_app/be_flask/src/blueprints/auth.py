@@ -1,8 +1,8 @@
 import logging
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, current_app, g
+import requests
 
-from ..auth import authenticate_user, create_token, verify_password, hash_password
-from ..models import db, User
+from ..keycloak_auth import authenticate_user, get_keycloak_auth
 
 logger = logging.getLogger(__name__)
 auth_bp = Blueprint('auth', __name__)
@@ -13,47 +13,36 @@ def whoami():
     """Return current authenticated user's basic metadata (username, role).
 
     This endpoint helps the front-end adapt UI to the user's role.
+    All authentication is handled by Keycloak.
+    Role is fetched fresh from Keycloak token (not from database).
     """
     try:
-        username, user = authenticate_user()
+        username, user_profile = authenticate_user()
         logger.info(f"User {username} requested their profile information")
         return jsonify({
             'username': username,
-            'role': getattr(user, 'role', 'user')
+            'role': g.user_role,  # Fresh from Keycloak token
+            'keycloak_id': str(user_profile.keycloak_id)
         })
     except Exception as e:
         logger.error(f"Error in whoami endpoint: {str(e)}")
         raise
 
 
-@auth_bp.route('/login', methods=['POST'])
-def login():
-    """Authenticate user and return JWT token."""
+@auth_bp.route('/config', methods=['GET'])
+def auth_config():
+    """Return Keycloak configuration for frontend authentication.
+    
+    This endpoint provides the frontend with necessary Keycloak configuration
+    to initiate the authentication flow.
+    Uses external URL (localhost) for browser access.
+    """
     try:
-        data = request.json or {}
-        username = data.get('username', '').strip()
-        password = data.get('password', '')
-
-        if not username or not password:
-            logger.warning("Login attempt with missing credentials")
-            return jsonify({'error': 'username and password required'}), 400
-
-        user = User.query.get(username)
-        if not user:
-            logger.warning(f"Login attempt for non-existent user: {username}")
-            return jsonify({'error': 'invalid credentials'}), 401
-
-        if not verify_password(user.password_hash, password):
-            logger.warning(f"Failed login attempt for user: {username}")
-            return jsonify({'error': 'invalid credentials'}), 401
-
-        token = create_token(user.username, expires_in=3600)
-        logger.info(f"Successful login for user: {username}")
         return jsonify({
-            'access_token': token,
-            'token_type': 'Bearer',
-            'expires_in': 3600
+            'server_url': current_app.config.get('KEYCLOAK_SERVER_URL_EXTERNAL'),
+            'realm': current_app.config.get('KEYCLOAK_REALM'),
+            'client_id': current_app.config.get('KEYCLOAK_CLIENT_ID')
         })
     except Exception as e:
-        logger.error(f"Error in login endpoint: {str(e)}")
-        return jsonify({'error': 'internal server error'}), 500
+        logger.error(f"Error in auth_config endpoint: {str(e)}")
+        return jsonify({'error': 'Configuration unavailable'}), 500

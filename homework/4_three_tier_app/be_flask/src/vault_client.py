@@ -171,6 +171,7 @@ class VaultClient:
                 'admin_password': secrets.get('admin_password'),
                 'alice_password': secrets.get('alice_password'),
                 'moderator_password': secrets.get('moderator_password'),
+                'CA_chain': secrets.get('CA_chain') or secrets.get('ca_chain')
             }
         
         logger.error("Failed to retrieve app secrets from Vault")
@@ -242,6 +243,35 @@ class VaultClient:
         
         logger.error("Failed to retrieve MinIO config from Vault")
         raise RuntimeError("MinIO configuration not available from Vault. Ensure Vault is configured and accessible.")
+    
+    def get_keycloak_config(self) -> Dict[str, str]:
+        """Get Keycloak configuration from Vault.
+        
+        Returns:
+            Dictionary containing Keycloak connection parameters
+        """
+        keycloak_secrets = self._read_secret('keycloak/client')
+        
+        if keycloak_secrets:
+            return {
+                'server_url': keycloak_secrets.get('server_url', 'http://keycloak:8080'),
+                'realm': keycloak_secrets.get('realm', 'mes-local-cloud'),
+                'client_id': keycloak_secrets.get('client_id', 'mes-local-cloud-api'),
+                'client_secret': keycloak_secrets.get('client_secret', ''),
+                'admin_username': keycloak_secrets.get('admin_username', ''),
+                'admin_password': keycloak_secrets.get('admin_password', '')
+            }
+        
+        logger.warning("Keycloak config not found in Vault, using defaults")
+        # Return defaults if not found in Vault
+        return {
+            'server_url': 'http://keycloak:8080',
+            'realm': 'mes-local-cloud',
+            'client_id': 'mes-local-cloud-api',
+            'client_secret': '',
+            'admin_username': '',
+            'admin_password': ''
+        }
 
     def invalidate_cache(self, path: Optional[str] = None) -> None:
         """Invalidate cached secrets.

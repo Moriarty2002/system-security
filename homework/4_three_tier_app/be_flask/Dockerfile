@@ -4,6 +4,12 @@ FROM python:3.10-slim
 # Set the working directory in the container
 WORKDIR /app
 
+# Ensure basic tools are present (curl, jq) for the CA installer
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends ca-certificates curl jq \
+	&& rm -rf /var/lib/apt/lists/*
+
 # Copy the dependencies file
 COPY requirements.txt .
 
@@ -16,10 +22,17 @@ COPY . .
 # Make port 5000 available to the world outside this container
 EXPOSE 5000
 
+# Copy entrypoint script and make executable
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+COPY scripts/install_ca.sh /usr/local/bin/install_ca.sh
+RUN chmod +x /usr/local/bin/install_ca.sh
+
 # Define environment variables
 ENV FLASK_APP=src/be.py
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV PYTHONPATH=/app
 
-# Run the command to start the Flask server
+# Entrypoint will install CA (if available) then exec the CMD
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["flask", "run"]

@@ -5,7 +5,7 @@ logger = logging.getLogger(__name__)
 
 
 class Config:
-    """Base configuration class with Vault integration."""
+    """Base configuration class with Vault and Keycloak integration."""
 
     def __init__(self):
         """Initialize configuration with Vault client."""
@@ -13,6 +13,7 @@ class Config:
         self._app_secrets = None
         self._db_config = None
         self._minio_client = None
+        self._keycloak_config = None
 
     @property
     def vault_client(self):
@@ -30,14 +31,62 @@ class Config:
         if self._app_secrets is None:
             self._app_secrets = self.vault_client.get_app_secrets()
         return self._app_secrets
+    
+    @property
+    def keycloak_config(self):
+        """Get Keycloak configuration from Vault with caching."""
+        if self._keycloak_config is None:
+            self._keycloak_config = self.vault_client.get_keycloak_config()
+        return self._keycloak_config
+    
+    @property
+    def KEYCLOAK_SERVER_URL_EXTERNAL(self) -> str:
+        """Keycloak server URL for browser access (external)."""
+        # Browser needs localhost, not Docker internal hostname
+        url = os.environ.get('KEYCLOAK_SERVER_URL_EXTERNAL')
+        if url:
+            return url
+        # Default to localhost for browser access
+        return 'https://localhost:8443'
 
     @property
     def SECRET_KEY(self) -> str:
-        """JWT signing key from Vault (required)."""
+        """JWT signing key from Vault (kept for session management)."""
         jwt_secret = self.app_secrets.get('jwt_secret')
         if not jwt_secret:
             raise RuntimeError("JWT secret not available from Vault")
         return jwt_secret
+    
+    @property
+    def KEYCLOAK_SERVER_URL(self) -> str:
+        """Keycloak server URL from environment or Vault."""
+        # Try environment variable first (for internal Docker networking)
+        url = os.environ.get('KEYCLOAK_SERVER_URL')
+        if url:
+            return url
+        # Fallback to Vault
+        return self.keycloak_config.get('server_url', 'http://keycloak:8080')
+    
+    @property
+    def KEYCLOAK_REALM(self) -> str:
+        """Keycloak realm name from environment or Vault."""
+        realm = os.environ.get('KEYCLOAK_REALM')
+        if realm:
+            return realm
+        return self.keycloak_config.get('realm', 'mes-local-cloud')
+    
+    @property
+    def KEYCLOAK_CLIENT_ID(self) -> str:
+        """Keycloak client ID from environment or Vault."""
+        client_id = os.environ.get('KEYCLOAK_CLIENT_ID')
+        if client_id:
+            return client_id
+        return self.keycloak_config.get('client_id', 'mes-local-cloud-api')
+    
+    @property
+    def KEYCLOAK_CLIENT_SECRET(self) -> str:
+        """Keycloak client secret from Vault (required for admin operations)."""
+        return self.keycloak_config.get('client_secret', '')
 
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
 

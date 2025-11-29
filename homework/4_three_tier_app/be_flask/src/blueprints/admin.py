@@ -1,8 +1,7 @@
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, jsonify, request
 
-from ..auth import authenticate_user, require_admin, hash_password
-from ..models import db, User
-from ..utils_minio import get_user_usage_bytes
+from ..keycloak_auth import authenticate_user, require_admin
+from ..models import db, UserProfile
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -10,73 +9,34 @@ admin_bp = Blueprint('admin', __name__)
 @admin_bp.route('/users', methods=['GET'])
 def list_users():
     """List all users with their details (admin only)."""
-    _, user = authenticate_user()
-    require_admin(user)
-    
-    minio_client = current_app.config['MINIO_CLIENT']
+    authenticate_user()
+    require_admin()
 
-    users = User.query.order_by(User.username).all()
+    users = UserProfile.query.all()
     results = []
     for u in users:
+        # Note: username comes from Flask g (set during authentication)
+        # For listing all users, we can't get their usernames without calling Keycloak API
+        # So we show only keycloak_id. Frontend should use keycloak_id for operations.
         results.append({
-            'username': u.username,
-            'role': u.role,
+            'keycloak_id': str(u.keycloak_id),
+            'role': 'Managed by Keycloak',  # Role not stored in DB
             'quota': u.quota,
-            'usage': get_user_usage_bytes(u.username, minio_client)
+            'username': 'See Keycloak'  # Can't get username without token
         })
 
     return jsonify({'users': results})
 
 
-@admin_bp.route('/users', methods=['POST'])
-def create_user():
-    """Create a new user (admin only)."""
-    _, user = authenticate_user()
-    require_admin(user)
+@admin_bp.route('/users/<keycloak_id>/quota', methods=['PUT'])
+def update_quota(keycloak_id):
+    """Update user quota (admin only). Use keycloak_id, not username."""
+    authenticate_user()
+    require_admin()
 
-    data = request.json or {}
-    username = data.get('username', '').strip()
-    quota = data.get('quota', 0)
-    password = data.get('password', '')
-
-    if not username or not password:
-        return jsonify({'error': 'username and password required'}), 400
-
-    # Validate quota is non-negative integer
-    try:
-        quota = int(quota)
-        if quota < 0:
-            return jsonify({'error': 'quota must be non-negative'}), 400
-    except (ValueError, TypeError):
-        return jsonify({'error': 'quota must be a valid integer'}), 400
-
-    existing = User.query.get(username)
-    if existing:
-        return jsonify({'error': 'user exists'}), 400
-
-    new_user = User()
-    new_user.username = username
-    new_user.quota = quota
-    new_user.password_hash = hash_password(password)
-    db.session.add(new_user)
-    db.session.commit()
-
-    return jsonify({'status': 'created', 'username': username})
-
-
-@admin_bp.route('/users/<username>/quota', methods=['PUT'])
-def update_quota(username):
-    """Update user quota (admin only)."""
-    _, user = authenticate_user()
-    require_admin(user)
-
-    target_user = User.query.get(username)
+    target_user = UserProfile.query.filter_by(keycloak_id=keycloak_id).first()
     if not target_user:
         return jsonify({'error': 'user not found'}), 404
-
-    # Prevent setting quotas for admin and moderator users
-    if target_user.role in ('admin', 'moderator'):
-        return jsonify({'error': f'cannot set quota for {target_user.role} users'}), 403
 
     data = request.json or {}
     try:
@@ -89,29 +49,35 @@ def update_quota(username):
     target_user.quota = quota
     db.session.commit()
 
-    return jsonify({'status': 'updated', 'username': username, 'quota': quota})
+    return jsonify({'status': 'updated', 'keycloak_id': keycloak_id, 'quota': quota})
 
 
-@admin_bp.route('/users/<username>', methods=['DELETE'])
-def delete_user(username):
-    """Delete a user (admin only)."""
-    _, user = authenticate_user()
-    require_admin(user)
+@admin_bp.route('/users/<keycloak_id>', methods=['DELETE'])
+def delete_user(keycloak_id):
+    """Delete a user profile (admin only). Use keycloak_id, not username.
+    
+    Note: This only deletes the application profile.
+    To fully remove a user, they must also be deleted from Keycloak.
+    """
+    from flask import g
+    
+    authenticate_user()
+    require_admin()
 
     # Prevent admin from deleting themselves
-    if username == user.username:
+    if keycloak_id == str(g.user_profile.keycloak_id):
         return jsonify({'error': 'cannot delete yourself'}), 403
 
-    target_user = User.query.get(username)
+    target_user = UserProfile.query.filter_by(keycloak_id=keycloak_id).first()
     if not target_user:
         return jsonify({'error': 'user not found'}), 404
 
-    # Prevent deleting other admin users
-    if target_user.role == 'admin':
-        return jsonify({'error': 'cannot delete admin users'}), 403
-
-    # Delete the user
+    # Delete the user profile
     db.session.delete(target_user)
     db.session.commit()
 
-    return jsonify({'status': 'deleted', 'username': username})
+    return jsonify({
+        'status': 'deleted',
+        'keycloak_id': keycloak_id,
+        'note': 'User profile deleted. User still exists in Keycloak and must be deleted there separately.'
+    })

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Local Cloud - Landing</title>
+    <title>Local Cloud - Keycloak Authentication</title>
     <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
     <link rel="stylesheet" href="css/theme.css">
 </head>
@@ -18,59 +18,81 @@
     </header>
 
     <main class="container">
-        <p class="muted">This site serves separate pages per role. Login and you'll be directed to the page with the functionality available to your role.</p>
+        <p class="muted">Secure file storage service with Keycloak authentication. Login to access your files and features based on your role.</p>
 
         <div class="section">
-            <input id="username" class="input" placeholder="username">
-            <input id="password" class="input" placeholder="password" type="password">
-            <button id="loginBtn" class="btn btn-primary">Login</button>
+            <button id="loginBtn" class="btn btn-primary">Login with Keycloak</button>
             <button id="logoutBtn" class="btn" style="display:none">Logout</button>
         </div>
 
         <div class="muted">
-            <small>Quick test accounts: <code>admin/admin</code>, <code>moderator/moderator</code>, <code>alice/alice</code></small>
+            <small>Authentication is managed by Keycloak. Please use your Keycloak credentials.</small>
         </div>
     </main>
 
+    <!-- Load Keycloak JS adapter -->
+    <script id="keycloak-config-loader">
+        // Dynamically load Keycloak JS adapter after getting config
+        (async function() {
+            try {
+                const response = await fetch('/api/auth/config');
+                const config = await response.json();
+                const script = document.createElement('script');
+                script.src = config.server_url + '/js/keycloak.js';
+                script.onload = function() {
+                    console.log('Keycloak JS adapter loaded');
+                    initApp();
+                };
+                script.onerror = function() {
+                    console.error('Failed to load Keycloak JS adapter');
+                    alert('Failed to load authentication service. Please refresh the page.');
+                };
+                document.head.appendChild(script);
+            } catch(e) {
+                console.error('Failed to load Keycloak config:', e);
+                alert('Failed to initialize authentication. Please refresh the page.');
+            }
+        })();
+    </script>
+
     <script src="js/common.js"></script>
     <script>
-        const { whoami, setToken, removeToken, redirectToRole, createThemeToggle } = appCommon;
+        async function initApp() {
+            const { whoami, redirectToRole, createThemeToggle, initKeycloak, login, logout } = appCommon;
 
-        // Add theme toggle
-        document.getElementById('themeToggleContainer').appendChild(createThemeToggle());
+            // Add theme toggle
+            document.getElementById('themeToggleContainer').appendChild(createThemeToggle());
 
-        document.getElementById('loginBtn').addEventListener('click', async () => {
-            const u = document.getElementById('username').value.trim();
-            const p = document.getElementById('password').value || '';
-            if (!u || !p) return alert('enter username and password');
-            try {
-                const res = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username: u, password: p }) });
-                if (!res.ok) {
-                    const t = await res.json().catch(()=>({error:'login failed'}));
-                    return alert('Login failed: ' + (t.error || res.status));
-                }
-                const j = await res.json();
-                setToken(j.access_token);
+            // Initialize Keycloak
+            const kc = await initKeycloak();
+            
+            if (kc && kc.authenticated) {
+                // User is authenticated
+                document.getElementById('loginBtn').style.display = 'none';
+                document.getElementById('logoutBtn').style.display = 'inline-block';
+                
+                // Get user info and redirect
                 const me = await whoami();
                 if (me) {
                     document.getElementById('who').textContent = me.username;
                     document.getElementById('role').textContent = '(' + me.role + ')';
+                    await redirectToRole(me);
                 }
-                await redirectToRole(me);
-            } catch (err) { alert('Login error: ' + err.message); }
-        });
+            } else {
+                // User not authenticated
+                document.getElementById('loginBtn').style.display = 'inline-block';
+                document.getElementById('logoutBtn').style.display = 'none';
+            }
 
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            removeToken();
-            document.getElementById('who').textContent = '';
-            document.getElementById('role').textContent = '';
-            document.getElementById('logoutBtn').style.display = 'none';
-        });
+            // Setup button handlers
+            document.getElementById('loginBtn').addEventListener('click', () => {
+                login();
+            });
 
-        (async function(){
-            const me = await whoami();
-            if (me) await redirectToRole(me);
-        })();
+            document.getElementById('logoutBtn').addEventListener('click', () => {
+                logout();
+            });
+        }
     </script>
 </body>
 </html>

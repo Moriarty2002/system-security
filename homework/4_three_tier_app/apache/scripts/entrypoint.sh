@@ -2,13 +2,12 @@
 set -e
 
 # Fetch certificates from Vault on startup
-VAULT_ADDR="${VAULT_ADDR:-https://shared_vault_server:8200}"
-VAULT_ROLE_ID="${APACHE_VAULT_ROLE_ID}"
-VAULT_SECRET_ID="${APACHE_VAULT_SECRET_ID}"
-VAULT_AUTH_PATH="${APACHE_VAULT_AUTH_PATH}"
-PKI_ENGINE="${PKI_ENGINE}"
-PKI_ROLE="${PKI_ROLE}"
-
+VAULT_ADDR="${VAULT_ADDR:?VAULT_ADDR environment variable is required}"
+VAULT_ROLE_ID="${APACHE_VAULT_ROLE_ID:?APACHE_VAULT_ROLE_ID environment variable is required}"
+VAULT_SECRET_ID="${APACHE_VAULT_SECRET_ID:?APACHE_VAULT_SECRET_ID environment variable is required}"
+VAULT_AUTH_PATH="${APACHE_VAULT_AUTH_PATH:?APACHE_VAULT_AUTH_PATH environment variable is required}"
+PKI_ENGINE="${PKI_ENGINE:?PKI_ENGINE environment variable is required}"
+PKI_ROLE="${PKI_ROLE:?PKI_ROLE environment variable is required}"
 # Validate required configuration
 if [ -z "$VAULT_ROLE_ID" ] || [ -z "$VAULT_SECRET_ID" ] || [ -z "$VAULT_AUTH_PATH" ] || [ -z "$PKI_ENGINE" ] || [ -z "$PKI_ROLE" ]; then
     echo "ERROR: Missing required Vault configuration:"
@@ -19,7 +18,7 @@ if [ -z "$VAULT_ROLE_ID" ] || [ -z "$VAULT_SECRET_ID" ] || [ -z "$VAULT_AUTH_PAT
     [ -z "$PKI_ROLE" ] && echo "  - PKI_ROLE"
     exit 1
 fi
-KV_PATH="secret/data/mes_local_cloud/certificates/apache"
+KV_PATH="secret/mes_local_cloud/certificates/apache"
 CERT_DIR="/usr/local/apache2/conf/extra/certs"
 
 echo "Authenticating with Vault using AppRole..."

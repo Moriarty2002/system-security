@@ -19,6 +19,11 @@ path "secret/data/mes_local_cloud/minio" {
   capabilities = ["read"]
 }
 
+# Read Keycloak client configuration
+path "secret/data/keycloak/client" {
+  capabilities = ["read"]
+}
+
 # Allow the app to renew its own token
 path "auth/token/renew-self" {
   capabilities = ["update"]
@@ -37,4 +42,24 @@ path "auth/approle/role/mes_local_cloud-flask-app/role-id" {
 # Write to get AppRole secret ID (for authentication)
 path "auth/approle/role/mes_local_cloud-flask-app/secret-id" {
   capabilities = ["update"]
+}
+
+# Application secrets
+path "secret/data/mes_local_cloud/*" {
+  capabilities = ["read"]
+}
+
+# Keycloak client configuration
+path "secret/data/keycloak/client" {
+  capabilities = ["read"]
+}
+
+# MinIO credentials
+path "secret/data/minio/app" {
+  capabilities = ["read"]
+}
+
+# Database credentials
+path "secret/data/database/app" {
+  capabilities = ["read"]
 }
