@@ -85,6 +85,11 @@ echo "Creating admin-policy for 4_three_tier_app..."
 docker exec -i -e VAULT_TOKEN="$VAULT_TOKEN" "$VAULT_CONTAINER" vault policy write mes_local_cloud-admin - < "$SCRIPT_DIR/../policies/admin-policy.hcl"
 echo "✅ Admin policy created"
 
+echo ""
+echo "Creating PKI policy for Apache..."
+docker exec -i -e VAULT_TOKEN="$VAULT_TOKEN" "$VAULT_CONTAINER" vault policy write pki-policy - < "$SCRIPT_DIR/../policies/pki-policy.hcl"
+echo "✅ PKI policy created"
+
 # Create AppRole for Flask application
 echo ""
 echo "==================================="

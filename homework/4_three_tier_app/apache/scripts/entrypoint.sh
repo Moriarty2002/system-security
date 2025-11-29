@@ -18,7 +18,7 @@ if [ -z "$VAULT_ROLE_ID" ] || [ -z "$VAULT_SECRET_ID" ] || [ -z "$VAULT_AUTH_PAT
     [ -z "$PKI_ROLE" ] && echo "  - PKI_ROLE"
     exit 1
 fi
-KV_PATH="secret/mes_local_cloud/certificates/apache"
+KV_PATH="secret/data/mes_local_cloud/certificates/apache"
 CERT_DIR="/usr/local/apache2/conf/extra/certs"
 
 echo "Authenticating with Vault using AppRole..."
@@ -49,7 +49,7 @@ fi
 echo "✓ Successfully authenticated with Vault"
 echo "Fetching certificates from Vault..."
 
-# First, try to get existing certificate from KV store
+# Fetch certificate from KV store
 echo "Checking for existing certificate in KV store..."
 EXISTING_CERT=$(wget --no-check-certificate -qO- --header "X-Vault-Token: ${VAULT_TOKEN}" \
   "${VAULT_ADDR}/v1/${KV_PATH}" 2>&1 || echo "")
@@ -66,57 +66,8 @@ if echo "$EXISTING_CERT" | grep -q '"server_cert"'; then
     
     echo "✓ Certificate retrieved from KV store (no private key on disk permanently)"
 else
-    echo "No existing certificate found, generating new one from PKI..."
-    
-    # Generate new certificate from PKI
-    RESPONSE=$(wget --no-check-certificate -qO- \
-      --method=POST \
-      --header="X-Vault-Token: ${VAULT_TOKEN}" \
-      --header="Content-Type: application/json" \
-      --body-data='{"common_name":"localhost","alt_names":"localhost","ip_sans":"127.0.0.1","ttl":"720h"}' \
-      "${VAULT_ADDR}/v1/${PKI_ENGINE}/issue/${PKI_ROLE}" 2>&1) || {
-        echo "ERROR: Failed to generate certificate from Vault PKI"
-        echo "Response: $RESPONSE"
-        echo "Falling back to existing certificates on disk..."
-        exec httpd-foreground
-        exit 0
-    }
-    
-    # Check if we got a valid response
-    if echo "$RESPONSE" | grep -q '"certificate"'; then
-        # Extract certificate and key
-        CERT=$(echo "$RESPONSE" | jq -r '.data.certificate')
-        KEY=$(echo "$RESPONSE" | jq -r '.data.private_key')
-        CA_CHAIN=$(echo "$RESPONSE" | jq -r '.data.ca_chain[0]')
-        
-        # Save to disk for Apache
-        echo "$CERT" > "${CERT_DIR}/user_certificate_signed.pem"
-        echo "$KEY" > "${CERT_DIR}/user_priv_key.pem"
-        
-        chmod 644 "${CERT_DIR}/user_certificate_signed.pem"
-        chmod 600 "${CERT_DIR}/user_priv_key.pem"
-        
-        echo "✓ Certificate generated from PKI"
-        
-        # Store in KV for reuse (certificate only persists in Vault)
-        echo "Storing certificate in KV store for future use..."
-        KV_DATA=$(jq -n \
-          --arg cert "$CERT" \
-          --arg key "$KEY" \
-          --arg ca "$CA_CHAIN" \
-          '{data: {server_cert: $cert, server_key: $key, ca_chain: $ca}}')
-        
-        wget --no-check-certificate -qO- \
-          --method=POST \
-          --header="X-Vault-Token: ${VAULT_TOKEN}" \
-          --header="Content-Type: application/json" \
-          --body-data="$KV_DATA" \
-          "${VAULT_ADDR}/v1/${KV_PATH}" > /dev/null 2>&1 && \
-          echo "✓ Certificate stored in KV store at ${KV_PATH}" || \
-          echo "⚠ Warning: Could not store certificate in KV (will regenerate on next restart)"
-    else
-        echo "WARNING: No certificate in PKI response, using existing certificates on disk"
-    fi
+    echo "ERROR: No existing certificate found in KV store. Unable to proceed."
+    exit 1
 fi
 
 echo "Starting Apache..."
