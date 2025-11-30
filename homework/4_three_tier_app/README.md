@@ -91,16 +91,15 @@ This script:
 ### Step 3: Configure Keycloak in Vault
 
 ```bash
-# Configure Keycloak secrets and credentials
-cd vault/scripts
-./setup-keycloak-vault.sh
-cd ../..
+# Use the canonical Keycloak infrastructure script to configure Vault
+# from the application directory:
+../keycloak-infrastructure/scripts/store-secrets-in-vault.sh --generate
 ```
 
-This script:
-- Generates secure Keycloak admin credentials
+This command:
+- Generates secure Keycloak admin credentials (with `--generate`)
 - Stores configuration in Vault
-- Updates environment variables
+- Updates or appends environment variables in `../keycloak-infrastructure/.env`
 - Configures database access for Keycloak
 
 **⚠️ SAVE THE KEYCLOAK ADMIN PASSWORD** displayed by the script!

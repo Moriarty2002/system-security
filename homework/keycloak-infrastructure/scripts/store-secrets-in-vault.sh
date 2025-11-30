@@ -12,6 +12,15 @@
 
 set -e
 
+# Simple CLI: support --generate to create .env and generate passwords
+GENERATE=false
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --generate) GENERATE=true; shift ;;
+        *) shift ;;
+    esac
+done
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/../.env"
 VAULT_ADDR="${VAULT_ADDR:-https://localhost:8200}"
@@ -51,10 +60,39 @@ vault_exec() {
     docker exec -e VAULT_TOKEN="$ROOT_TOKEN" -e VAULT_SKIP_VERIFY=1 "$VAULT_CONTAINER" vault "$@"
 }
 
-# Check if .env file exists
+# If requested, generate .env and credentials
+if [ "$GENERATE" = true ]; then
+    echo -e "${YELLOW}--generate requested: creating/updating .env with generated credentials${NC}"
+    # Backup existing .env if present
+    if [ -f "$ENV_FILE" ]; then
+        BACKUP="$ENV_FILE.$(date +%s).bak"
+        cp "$ENV_FILE" "$BACKUP"
+        echo -e "${YELLOW}Existing .env backed up to $BACKUP${NC}"
+    else
+        mkdir -p "$(dirname "$ENV_FILE")"
+        touch "$ENV_FILE"
+    fi
+
+    # Generate secure random passwords
+    KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
+    KEYCLOAK_ADMIN_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
+    KEYCLOAK_DB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
+
+    # Append/update variables in .env (simple approach: append values)
+    cat >> "$ENV_FILE" << EOF
+# Keycloak credentials (generated $(date))
+KEYCLOAK_ADMIN=$KEYCLOAK_ADMIN
+KEYCLOAK_ADMIN_PASSWORD=$KEYCLOAK_ADMIN_PASSWORD
+KEYCLOAK_DB_PASSWORD=$KEYCLOAK_DB_PASSWORD
+EOF
+
+    echo -e "${GREEN}✓ Generated and wrote Keycloak credentials to $ENV_FILE${NC}"
+fi
+
+# Check if .env file exists now
 if [ ! -f "$ENV_FILE" ]; then
     echo -e "${RED}❌ Error: .env file not found${NC}"
-    echo "Please run: ./scripts/init-keycloak.sh"
+    echo "Please run: ./scripts/init-keycloak.sh or use --generate"
     exit 1
 fi
 
