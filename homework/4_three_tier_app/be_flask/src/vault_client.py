@@ -251,29 +251,12 @@ class VaultClient:
             Dictionary containing Keycloak connection parameters
         """
         keycloak_secrets = self._read_secret('keycloak/client')
-        
+
+        # Return the raw stored map if present. Do not fabricate defaults here.
         if keycloak_secrets:
-            return {
-                'server_url': keycloak_secrets.get('server_url', ''),
-                'realm': keycloak_secrets.get('realm', ''),
-                'client_id': keycloak_secrets.get('client_id', ''),
-                'client_secret': keycloak_secrets.get('client_secret', ''),
-                'admin_username': keycloak_secrets.get('admin_username', ''),
-                'admin_password': keycloak_secrets.get('admin_password', ''),
-                'client_id_admin': keycloak_secrets.get('client_id_admin', ''),
-                'client_secret_admin': keycloak_secrets.get('client_secret_admin', '')
-            }
-        
-        logger.warning("Keycloak config not found in Vault, using defaults")
-        # Return defaults if not found in Vault
-        return {
-            'server_url': 'http://keycloak:8080',
-            'realm': 'mes-local-cloud',
-            'client_id': 'mes-local-cloud-api',
-            'client_secret': '',
-            'admin_username': '',
-            'admin_password': ''
-        }
+            return keycloak_secrets
+
+        return None
 
     def invalidate_cache(self, path: Optional[str] = None) -> None:
         """Invalidate cached secrets.

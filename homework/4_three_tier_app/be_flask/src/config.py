@@ -36,18 +36,22 @@ class Config:
     def keycloak_config(self):
         """Get Keycloak configuration from Vault with caching."""
         if self._keycloak_config is None:
+            # May return None if Vault does not contain the keycloak/client secret
             self._keycloak_config = self.vault_client.get_keycloak_config()
         return self._keycloak_config
     
     @property
     def KEYCLOAK_SERVER_URL_EXTERNAL(self) -> str:
         """Keycloak server URL for browser access (external)."""
-        # Browser needs localhost, not Docker internal hostname
-        url = os.environ.get('KEYCLOAK_SERVER_URL_EXTERNAL')
-        if url:
-            return url
-        # Default to localhost for browser access
-        return 'https://localhost:8443'
+        # Require Keycloak configuration to come from Vault. Do not read env vars.
+        kc = self.keycloak_config
+        if kc is None:
+            raise RuntimeError('Vault secret `secret/keycloak/client` not found; KEYCLOAK_SERVER_URL_EXTERNAL unavailable')
+
+        val = kc.get('server_url_external')
+        if val is None:
+            raise RuntimeError('KEYCLOAK_SERVER_URL_EXTERNAL missing in Vault secret `secret/keycloak/client`')
+        return val
 
     @property
     def SECRET_KEY(self) -> str:
@@ -60,33 +64,54 @@ class Config:
     @property
     def KEYCLOAK_SERVER_URL(self) -> str:
         """Keycloak server URL from environment or Vault."""
-        # Try environment variable first (for internal Docker networking)
-        url = os.environ.get('KEYCLOAK_SERVER_URL')
-        if url:
-            return url
-        # Fallback to Vault
-        return self.keycloak_config.get('server_url', '')
+        # Require Keycloak configuration to come from Vault. Do not read env vars.
+        kc = self.keycloak_config
+        if kc is None:
+            raise RuntimeError('Vault secret `secret/keycloak/client` not found; KEYCLOAK_SERVER_URL unavailable')
+
+        val = kc.get('server_url')
+        if val is None:
+            raise RuntimeError('KEYCLOAK_SERVER_URL missing in Vault secret `secret/keycloak/client`')
+        return val
     
     @property
     def KEYCLOAK_REALM(self) -> str:
         """Keycloak realm name from environment or Vault."""
-        realm = os.environ.get('KEYCLOAK_REALM')
-        if realm:
-            return realm
-        return self.keycloak_config.get('realm', '')
+        # Require Keycloak configuration to come from Vault. Do not read env vars.
+        kc = self.keycloak_config
+        if kc is None:
+            raise RuntimeError('Vault secret `secret/keycloak/client` not found; KEYCLOAK_REALM unavailable')
+
+        val = kc.get('realm')
+        if val is None:
+            raise RuntimeError('KEYCLOAK_REALM missing in Vault secret `secret/keycloak/client`')
+        return val
     
     @property
     def KEYCLOAK_CLIENT_ID(self) -> str:
         """Keycloak client ID from environment or Vault."""
-        client_id = os.environ.get('KEYCLOAK_CLIENT_ID')
-        if client_id:
-            return client_id
-        return self.keycloak_config.get('client_id', '')
+        # Require Keycloak configuration to come from Vault. Do not read env vars.
+        kc = self.keycloak_config
+        if kc is None:
+            raise RuntimeError('Vault secret `secret/keycloak/client` not found; KEYCLOAK_CLIENT_ID unavailable')
+
+        val = kc.get('client_id')
+        if val is None:
+            raise RuntimeError('KEYCLOAK_CLIENT_ID missing in Vault secret `secret/keycloak/client`')
+        return val
     
     @property
     def KEYCLOAK_CLIENT_SECRET(self) -> str:
         """Keycloak client secret from Vault (required for admin operations)."""
-        return self.keycloak_config.get('client_secret', '')
+        # Require Keycloak configuration to come from Vault. Do not read env vars.
+        kc = self.keycloak_config
+        if kc is None:
+            raise RuntimeError('Vault secret `secret/keycloak/client` not found; KEYCLOAK_CLIENT_SECRET unavailable')
+
+        val = kc.get('client_secret')
+        if val is None:
+            raise RuntimeError('KEYCLOAK_CLIENT_SECRET missing in Vault secret `secret/keycloak/client`')
+        return val
 
     @property
     def KEYCLOAK_CLIENT_ID_ADMIN(self) -> str:
@@ -94,10 +119,15 @@ class Config:
 
         Falls back to `KEYCLOAK_CLIENT_ID` if not explicitly configured.
         """
-        client_id = os.environ.get('KEYCLOAK_CLIENT_ID_ADMIN')
-        if client_id:
-            return client_id
-        return self.keycloak_config.get('client_id_admin', '')
+        # Require Keycloak configuration to come from Vault. Do not read env vars.
+        kc = self.keycloak_config
+        if kc is None:
+            raise RuntimeError('Vault secret `secret/keycloak/client` not found; KEYCLOAK_CLIENT_ID_ADMIN unavailable')
+
+        val = kc.get('client_id_admin')
+        if val is None:
+            raise RuntimeError('KEYCLOAK_CLIENT_ID_ADMIN missing in Vault secret `secret/keycloak/client`')
+        return val
 
     @property
     def KEYCLOAK_CLIENT_SECRET_ADMIN(self) -> str:
@@ -105,10 +135,15 @@ class Config:
 
         Falls back to the general client secret if an admin secret isn't provided.
         """
-        secret = os.environ.get('KEYCLOAK_CLIENT_SECRET_ADMIN')
-        if secret:
-            return secret
-        return self.keycloak_config.get('client_secret_admin', '')
+        # Require Keycloak configuration to come from Vault. Do not read env vars.
+        kc = self.keycloak_config
+        if kc is None:
+            raise RuntimeError('Vault secret `secret/keycloak/client` not found; KEYCLOAK_CLIENT_SECRET_ADMIN unavailable')
+
+        val = kc.get('client_secret_admin')
+        if val is None:
+            raise RuntimeError('KEYCLOAK_CLIENT_SECRET_ADMIN missing in Vault secret `secret/keycloak/client`')
+        return val
 
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
 
