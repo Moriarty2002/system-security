@@ -186,6 +186,73 @@ class KeycloakAuth:
         }
 
 
+    # --- Keycloak Admin helpers ---
+    def _get_verify_arg(self):
+        """Determine `verify` argument for requests (path or bool)."""
+        verify_arg = self.use_ssl_verify
+        if self.use_ssl_verify:
+            system_bundle = '/etc/ssl/certs/ca-certificates.crt'
+            if os.path.exists(system_bundle):
+                verify_arg = system_bundle
+        return verify_arg
+
+    def get_admin_token(self) -> Optional[str]:
+        """Obtain an admin access token using client credentials.
+
+        Returns:
+            access token string or None if client secret not configured.
+        """
+        try:
+            # Use cached token if present and not expired isn't implemented here
+            # Keep it simple: fetch a fresh token when needed
+            client_secret = current_app.config.get('KEYCLOAK_CLIENT_SECRET_ADMIN')
+            if not client_secret:
+                raise RuntimeError('Keycloak client secret admin not configured (KEYCLOAK_CLIENT_SECRET_ADMIN required)')
+
+            token_url = f"{self.realm_url}/protocol/openid-connect/token"
+            data = {
+                'grant_type': 'client_credentials',
+                'client_id': self.client_id,
+                'client_secret': client_secret
+            }
+            resp = requests.post(token_url, data=data, timeout=10, verify=self._get_verify_arg())
+            resp.raise_for_status()
+            return resp.json().get('access_token')
+        except Exception as e:
+            logger.warning(f'Failed to obtain Keycloak admin token: {e}')
+            return None
+
+    def admin_get_user(self, keycloak_id: str) -> Optional[Dict]:
+        """Fetch a user's representation from Keycloak Admin API by Keycloak ID.
+
+        Returns:
+            JSON user representation, or None if not found or admin access not available.
+        """
+        try:
+            token = self.get_admin_token()
+            if not token:
+                return None
+
+            headers = {'Authorization': 'Bearer ' + token}
+            url = f"{self.server_url}/admin/realms/{self.realm}/users/{keycloak_id}"
+            resp = requests.get(url, headers=headers, timeout=10, verify=self._get_verify_arg())
+            if resp.status_code == 404:
+                return None
+            # If token expired/invalid, try to fetch a fresh token and retry once
+            if resp.status_code == 401:
+                token = self.get_admin_token()
+                if not token:
+                    return None
+                headers = {'Authorization': 'Bearer ' + token}
+                resp = requests.get(url, headers=headers, timeout=10, verify=self._get_verify_arg())
+
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as e:
+            logger.warning(f'Failed to fetch user {keycloak_id} from Keycloak admin API: {e}')
+            return None
+
+
 def get_keycloak_auth() -> KeycloakAuth:
     """Get or create KeycloakAuth instance from app config.
     
@@ -203,6 +270,18 @@ def get_keycloak_auth() -> KeycloakAuth:
         current_app.keycloak_auth = KeycloakAuth(server_url, realm, client_id)
     
     return current_app.keycloak_auth
+
+
+def get_admin_keycloak_auth() -> KeycloakAuth:
+    """Get or create a KeycloakAuth instance configured with the admin/service-account client."""
+    if not hasattr(current_app, 'keycloak_admin_auth'):
+        server_url = current_app.config.get('KEYCLOAK_SERVER_URL')
+        realm = current_app.config.get('KEYCLOAK_REALM')
+        # Allow an explicit admin client id in config
+        client_id = current_app.config.get('KEYCLOAK_CLIENT_ID_ADMIN')
+        current_app.keycloak_admin_auth = KeycloakAuth(server_url, realm, client_id)
+
+    return current_app.keycloak_admin_auth
 
 
 def authenticate_user() -> Tuple[str, UserProfile]:

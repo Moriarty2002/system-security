@@ -73,12 +73,20 @@
 
       j.users.forEach(u => {
         const tr = document.createElement('tr');
-        const quotaButton = (u.role === 'admin' || u.role === 'moderator') ? '' : `<button data-user="${u.username}" class="btn quota">Set Quota</button>`;
-        const deleteButton = (u.role === 'admin' || u.username === currentUser?.username) ? '' : `<button data-user="${u.username}" class="btn btn-danger delete">Delete</button>`;
+        // Prefer a human-friendly username if backend provides it, otherwise fall back to keycloak_id
+        const userId = u.keycloak_id || u.username || '';
+        const displayName = (u.username && u.username !== 'See Keycloak') ? u.username : userId;
+        // usage may be absent in Keycloak-only setups
+        const usageVal = (typeof u.usage === 'number') ? u.usage : 0;
+
+        // Use keycloak_id for server-side operations (backend expects keycloak_id)
+        const quotaButton = (u.role === 'admin' || u.role === 'moderator') ? '' : `<button data-user="${userId}" class="btn quota">Set Quota</button>`;
+        const deleteButton = (u.role === 'admin' || userId === currentUser?.keycloak_id) ? '' : `<button data-user="${userId}" class="btn btn-danger delete">Delete</button>`;
+
         tr.innerHTML = `
-          <td>${u.username}</td>
-          <td>${formatBytes(u.usage)}</td>
-          <td>${formatBytes(u.quota)}</td>
+          <td>${displayName}</td>
+          <td>${formatBytes(usageVal)}</td>
+          <td>${formatBytes(u.quota || 0)}</td>
           <td>
             ${quotaButton}
             ${deleteButton}

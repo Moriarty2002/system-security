@@ -254,12 +254,14 @@ class VaultClient:
         
         if keycloak_secrets:
             return {
-                'server_url': keycloak_secrets.get('server_url', 'http://keycloak:8080'),
-                'realm': keycloak_secrets.get('realm', 'mes-local-cloud'),
-                'client_id': keycloak_secrets.get('client_id', 'mes-local-cloud-api'),
+                'server_url': keycloak_secrets.get('server_url', ''),
+                'realm': keycloak_secrets.get('realm', ''),
+                'client_id': keycloak_secrets.get('client_id', ''),
                 'client_secret': keycloak_secrets.get('client_secret', ''),
                 'admin_username': keycloak_secrets.get('admin_username', ''),
-                'admin_password': keycloak_secrets.get('admin_password', '')
+                'admin_password': keycloak_secrets.get('admin_password', ''),
+                'client_id_admin': keycloak_secrets.get('client_id_admin', ''),
+                'client_secret_admin': keycloak_secrets.get('client_secret_admin', '')
             }
         
         logger.warning("Keycloak config not found in Vault, using defaults")

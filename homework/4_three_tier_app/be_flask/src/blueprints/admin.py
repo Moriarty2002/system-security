@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 
-from ..keycloak_auth import authenticate_user, require_admin
+from ..keycloak_auth import authenticate_user, require_admin, get_admin_keycloak_auth
 from ..models import db, UserProfile
 
 admin_bp = Blueprint('admin', __name__)
@@ -14,15 +14,29 @@ def list_users():
 
     users = UserProfile.query.all()
     results = []
+    # Attempt to resolve human-friendly usernames from Keycloak Admin API if available.
+    kc = None
+    try:
+        kc = get_admin_keycloak_auth()
+    except Exception:
+        kc = None
+
     for u in users:
-        # Note: username comes from Flask g (set during authentication)
-        # For listing all users, we can't get their usernames without calling Keycloak API
-        # So we show only keycloak_id. Frontend should use keycloak_id for operations.
+        username = 'See Keycloak'
+        try:
+            if kc:
+                kc_user = kc.admin_get_user(str(u.keycloak_id))
+                if kc_user and kc_user.get('username'):
+                    username = kc_user.get('username')
+        except Exception:
+            # Any failure to call Keycloak admin API should not prevent listing users
+            username = 'See Keycloak'
+
         results.append({
             'keycloak_id': str(u.keycloak_id),
             'role': 'Managed by Keycloak',  # Role not stored in DB
             'quota': u.quota,
-            'username': 'See Keycloak'  # Can't get username without token
+            'username': username
         })
 
     return jsonify({'users': results})

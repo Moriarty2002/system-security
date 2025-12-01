@@ -65,7 +65,7 @@ class Config:
         if url:
             return url
         # Fallback to Vault
-        return self.keycloak_config.get('server_url', 'http://keycloak:8080')
+        return self.keycloak_config.get('server_url', '')
     
     @property
     def KEYCLOAK_REALM(self) -> str:
@@ -73,7 +73,7 @@ class Config:
         realm = os.environ.get('KEYCLOAK_REALM')
         if realm:
             return realm
-        return self.keycloak_config.get('realm', 'mes-local-cloud')
+        return self.keycloak_config.get('realm', '')
     
     @property
     def KEYCLOAK_CLIENT_ID(self) -> str:
@@ -81,12 +81,34 @@ class Config:
         client_id = os.environ.get('KEYCLOAK_CLIENT_ID')
         if client_id:
             return client_id
-        return self.keycloak_config.get('client_id', 'mes-local-cloud-api')
+        return self.keycloak_config.get('client_id', '')
     
     @property
     def KEYCLOAK_CLIENT_SECRET(self) -> str:
         """Keycloak client secret from Vault (required for admin operations)."""
         return self.keycloak_config.get('client_secret', '')
+
+    @property
+    def KEYCLOAK_CLIENT_ID_ADMIN(self) -> str:
+        """Admin/service-account client id for backend admin calls.
+
+        Falls back to `KEYCLOAK_CLIENT_ID` if not explicitly configured.
+        """
+        client_id = os.environ.get('KEYCLOAK_CLIENT_ID_ADMIN')
+        if client_id:
+            return client_id
+        return self.keycloak_config.get('client_id_admin', '')
+
+    @property
+    def KEYCLOAK_CLIENT_SECRET_ADMIN(self) -> str:
+        """Admin/service-account client secret stored in Vault or env.
+
+        Falls back to the general client secret if an admin secret isn't provided.
+        """
+        secret = os.environ.get('KEYCLOAK_CLIENT_SECRET_ADMIN')
+        if secret:
+            return secret
+        return self.keycloak_config.get('client_secret_admin', '')
 
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
 

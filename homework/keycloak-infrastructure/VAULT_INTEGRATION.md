@@ -54,6 +54,14 @@ secret/keycloak/database
 secret/keycloak/admin
   - username: admin
   - password: [auto-generated 32-char password]
+
+secret/keycloak/client
+  - server_url: http://shared-keycloak-server:8080
+  - realm: mes-local-cloud
+  - client_id: mes-local-cloud-api            # browser-facing client
+  - client_secret: <browser-client-secret>
+  - client_id_admin: mes-local-cloud-admin-queries    # admin/service-account client
+  - client_secret_admin: <admin-client-secret>
 ```
 
 ### 2. Vault AppRole

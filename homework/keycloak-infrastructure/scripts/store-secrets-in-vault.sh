@@ -120,6 +120,18 @@ vault_exec kv put secret/keycloak/admin \
     username="$KEYCLOAK_ADMIN" \
     password="$KEYCLOAK_ADMIN_PASSWORD"
 
+# If .env contains Keycloak client values for browser/admin clients, store them too
+if [ -n "$KEYCLOAK_CLIENT_ID" ] || [ -n "$KEYCLOAK_CLIENT_SECRET" ] || [ -n "$KEYCLOAK_CLIENT_ID_ADMIN" ] || [ -n "$KEYCLOAK_CLIENT_SECRET_ADMIN" ]; then
+    echo "🔐 Storing Keycloak client configuration in Vault (client ids/secrets)"
+    vault_exec kv put secret/keycloak/client \
+        server_url="${KEYCLOAK_SERVER_URL}" \
+        realm="${KEYCLOAK_REALM}" \
+        client_id="${KEYCLOAK_CLIENT_ID}" \
+        client_secret="${KEYCLOAK_CLIENT_SECRET}" \
+        client_id_admin="${KEYCLOAK_CLIENT_ID_ADMIN}" \
+        client_secret_admin="${KEYCLOAK_CLIENT_SECRET_ADMIN}"
+fi
+
 echo -e "${GREEN}✅ Secrets stored successfully in Vault${NC}"
 echo ""
 echo "Secrets stored at:"

@@ -11,6 +11,11 @@ path "secret/data/keycloak/admin" {
   capabilities = ["read"]
 }
 
+# Allow reading Keycloak client configuration (browser + admin client ids/secrets)
+path "secret/data/keycloak/client" {
+  capabilities = ["read"]
+}
+
 # Allow reading TLS certificates
 path "secret/data/keycloak/certificates" {
   capabilities = ["read"]
