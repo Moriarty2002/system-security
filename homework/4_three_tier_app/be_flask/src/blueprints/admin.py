@@ -1,7 +1,8 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 
 from ..keycloak_auth import authenticate_user, require_admin, get_admin_keycloak_auth
 from ..models import db, UserProfile
+from ..utils_minio import get_user_usage_bytes
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -21,6 +22,8 @@ def list_users():
     except Exception:
         kc = None
 
+    minio_client = current_app.config.get('MINIO_CLIENT')
+
     for u in users:
         username = 'See Keycloak'
         try:
@@ -32,10 +35,19 @@ def list_users():
             # Any failure to call Keycloak admin API should not prevent listing users
             username = 'See Keycloak'
 
+        # Calculate used quota
+        used_quota = 0
+        if minio_client and username != 'See Keycloak':
+            try:
+                used_quota = get_user_usage_bytes(username, minio_client)
+            except Exception:
+                used_quota = 0
+
         results.append({
             'keycloak_id': str(u.keycloak_id),
             'role': 'Managed by Keycloak',  # Role not stored in DB
             'quota': u.quota,
+            'used_quota': used_quota,
             'username': username
         })
 

@@ -76,8 +76,6 @@
         // Prefer a human-friendly username if backend provides it, otherwise fall back to keycloak_id
         const userId = u.keycloak_id || u.username || '';
         const displayName = (u.username && u.username !== 'See Keycloak') ? u.username : userId;
-        // usage may be absent in Keycloak-only setups
-        const usageVal = (typeof u.usage === 'number') ? u.usage : 0;
 
         // Use keycloak_id for server-side operations (backend expects keycloak_id)
         const quotaButton = (u.role === 'admin' || u.role === 'moderator') ? '' : `<button data-user="${userId}" class="btn quota">Set Quota</button>`;
@@ -85,7 +83,7 @@
 
         tr.innerHTML = `
           <td>${displayName}</td>
-          <td>${formatBytes(usageVal)}</td>
+          <td>${formatBytes(u.used_quota || 0)}</td>
           <td>${formatBytes(u.quota || 0)}</td>
           <td>
             ${quotaButton}
