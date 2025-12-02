@@ -10,7 +10,7 @@ set -euo pipefail
 #  KC_CONTAINER - Keycloak container name (default: shared-keycloak-server)
 #  VAULT_CONTAINER - Vault container name (default: shared_vault_server)
 #  VAULT_TOKEN - Required for vault_setup.sh
-#  CLIENT_SECRET_ADMIN - Required for vault_setup.sh (admin-cli client secret)
+#  CLIENT_SECRET_ADMIN - Required for vault_setup.sh (mes-local-cloud-admin-query client secret)
 #  PG_CONTAINER - PostgreSQL container name (default: postgres_db)
 #  PG_USER - PostgreSQL user (default: admin)
 #  PG_DB - PostgreSQL database (default: postgres_db)
@@ -60,10 +60,10 @@ if [ "${PARTIAL_RUN:-false}" = "true" ]; then
   echo "=========================================="
   echo ""
   echo "Next steps:"
-  echo "1. Get the admin-cli client secret:"
+  echo "1. Get the mes-local-cloud-admin-query client secret:"
   REALM=${REALM_NAME:-mes-local-cloud}
   KC=${KC_CONTAINER:-shared-keycloak-server}
-  echo "   CLIENT_ID_UUID=\$(docker exec ${KC} /opt/keycloak/bin/kcadm.sh get clients -r ${REALM} -q clientId=admin-cli --fields id --format csv --noquotes)"
+  echo "   CLIENT_ID_UUID=\$(docker exec ${KC} /opt/keycloak/bin/kcadm.sh get clients -r ${REALM} -q clientId=mes-local-cloud-admin-query --fields id --format csv --noquotes)"
   echo "   export CLIENT_SECRET_ADMIN=\$(docker exec ${KC} /opt/keycloak/bin/kcadm.sh get clients/\${CLIENT_ID_UUID}/client-secret -r ${REALM} | jq -r '.value')"
   echo ""
   echo "2. Run remaining steps:"
@@ -104,7 +104,7 @@ echo "   curl -k https://localhost:8443/realms/${REALM_NAME:-mes-local-cloud}/.w
 echo ""
 echo "2. Test authentication:"
 echo "   curl -k -X POST https://localhost:8443/realms/${REALM_NAME:-mes-local-cloud}/protocol/openid-connect/token \\"
-echo "     -d 'client_id=flask-backend&grant_type=password&username=alice&password=alice'"
+echo "     -d 'client_id=mes-local-cloud-public&grant_type=password&username=alice&password=alice'"
 echo ""
 echo "3. Start the application stack (if not already running)"
 echo ""

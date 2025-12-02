@@ -191,8 +191,8 @@ export VAULT_TOKEN=<your-vault-root-token>
 
 # Optional customizations
 export REALM_NAME=mes-local-cloud
-export CLIENT_ID=flask-backend
-export CLIENT_ID_ADMIN=admin-cli
+export CLIENT_ID=mes-local-cloud-public
+export CLIENT_ID_ADMIN=mes-local-cloud-admin-query
 ```
 
 **4.2 Run Keycloak Setup Script**
@@ -205,15 +205,15 @@ chmod +x *.sh
 This creates:
 - Realm: `mes-local-cloud` (or custom name)
 - Roles: `admin`, `moderator`, `user`
-- Clients: `flask-backend` (public), `admin-cli` (confidential)
+- Clients: `mes-local-cloud-public` (public), `mes-local-cloud-admin-query` (confidential)
 - Users: `admin`, `alice`, `moderator` with passwords
 - Role mappings and service account permissions
 
-**4.3 Get admin-cli Client Secret**
+**4.3 Get mes-local-cloud-admin-query Client Secret**
 ```bash
 ADMIN_CLIENT_ID=$(docker exec shared-keycloak-server \
   /opt/keycloak/bin/kcadm.sh get clients -r mes-local-cloud --fields id,clientId | \
-  jq -r '.[] | select(.clientId=="admin-cli") | .id')
+  jq -r '.[] | select(.clientId=="mes-local-cloud-admin-query") | .id')
 
 CLIENT_SECRET_ADMIN=$(docker exec shared-keycloak-server \
   /opt/keycloak/bin/kcadm.sh get clients/$ADMIN_CLIENT_ID/client-secret -r mes-local-cloud | \
@@ -290,16 +290,16 @@ docker exec -e VAULT_TOKEN=$VAULT_TOKEN shared_vault_server \
 
 # Create AppRole
 docker exec -e VAULT_TOKEN=$VAULT_TOKEN shared_vault_server \
-  vault write auth/approle/role/flask-backend \
+  vault write auth/approle/role/mes-local-cloud-public \
   token_policies="flask-policy" \
   token_ttl=1h token_max_ttl=4h
 
 # Get credentials
 FLASK_ROLE_ID=$(docker exec -e VAULT_TOKEN=$VAULT_TOKEN shared_vault_server \
-  vault read -field=role_id auth/approle/role/flask-backend/role-id)
+  vault read -field=role_id auth/approle/role/mes-local-cloud-public/role-id)
 
 FLASK_SECRET_ID=$(docker exec -e VAULT_TOKEN=$VAULT_TOKEN shared_vault_server \
-  vault write -field=secret_id -f auth/approle/role/flask-backend/secret-id)
+  vault write -field=secret_id -f auth/approle/role/mes-local-cloud-public/secret-id)
 
 echo "FLASK_ROLE_ID=$FLASK_ROLE_ID"
 echo "FLASK_SECRET_ID=$FLASK_SECRET_ID"
@@ -379,7 +379,7 @@ APACHE_VAULT_SECRET_ID=$APACHE_SECRET_ID
 # Keycloak Configuration
 KEYCLOAK_SERVER_URL=https://shared-keycloak-server:8443
 KEYCLOAK_REALM=mes-local-cloud
-KEYCLOAK_CLIENT_ID=flask-backend
+KEYCLOAK_CLIENT_ID=mes-local-cloud-public
 EOF
 ```
 
@@ -435,9 +435,9 @@ Writes Keycloak client configuration to Vault.
 
 **Environment Variables:**
 - `VAULT_TOKEN` (required)
-- `CLIENT_ID` (default: flask-backend)
+- `CLIENT_ID` (default: mes-local-cloud-public)
 - `CLIENT_SECRET` (required)
-- `CLIENT_ID_ADMIN` (default: admin-cli)
+- `CLIENT_ID_ADMIN` (default: mes-local-cloud-admin-query)
 - `CLIENT_SECRET_ADMIN` (required)
 - `REALM` (default: mes-local-cloud)
 - `SERVER_URL` (default: https://shared-keycloak-server:8443)
@@ -533,7 +533,7 @@ docker ps --format 'table {{.Names}}\t{{.Status}}'
 # Get token for alice
 TOKEN=$(curl -k -s -X POST "https://localhost:8443/realms/mes-local-cloud/protocol/openid-connect/token" \
   -d "grant_type=password" \
-  -d "client_id=flask-backend" \
+  -d "client_id=mes-local-cloud-public" \
   -d "username=alice" \
   -d "password=alice" | jq -r '.access_token')
 

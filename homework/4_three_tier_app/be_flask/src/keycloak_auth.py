@@ -205,14 +205,17 @@ class KeycloakAuth:
         try:
             # Use cached token if present and not expired isn't implemented here
             # Keep it simple: fetch a fresh token when needed
+            client_id_admin = current_app.config.get('KEYCLOAK_CLIENT_ID_ADMIN')
             client_secret = current_app.config.get('KEYCLOAK_CLIENT_SECRET_ADMIN')
             if not client_secret:
                 raise RuntimeError('Keycloak client secret admin not configured (KEYCLOAK_CLIENT_SECRET_ADMIN required)')
+            if not client_id_admin:
+                raise RuntimeError('Keycloak client ID admin not configured (KEYCLOAK_CLIENT_ID_ADMIN required)')
 
             token_url = f"{self.realm_url}/protocol/openid-connect/token"
             data = {
                 'grant_type': 'client_credentials',
-                'client_id': self.client_id,
+                'client_id': client_id_admin,
                 'client_secret': client_secret
             }
             resp = requests.post(token_url, data=data, timeout=10, verify=self._get_verify_arg())

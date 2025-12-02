@@ -60,7 +60,7 @@ secret/keycloak/client
   - realm: mes-local-cloud
   - client_id: mes-local-cloud-api            # browser-facing client
   - client_secret: <browser-client-secret>
-  - client_id_admin: mes-local-cloud-admin-queries    # admin/service-account client
+  - client_id_admin: mes-local-cloud-admin-query    # admin/service-account client
   - client_secret_admin: <admin-client-secret>
 ```
 

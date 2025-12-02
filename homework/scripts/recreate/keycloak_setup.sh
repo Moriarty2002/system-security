@@ -26,15 +26,15 @@ docker exec ${KC_CONTAINER} ${KCADM} create roles -r ${REALM_NAME} -s name=admin
 docker exec ${KC_CONTAINER} ${KCADM} create roles -r ${REALM_NAME} -s name=moderator -s description="Moderator role" || true
 docker exec ${KC_CONTAINER} ${KCADM} create roles -r ${REALM_NAME} -s name=user -s description="User role" || true
 
-echo "Creating public client: flask-backend"
+echo "Creating public client: mes-local-cloud-public"
 docker exec ${KC_CONTAINER} ${KCADM} create clients -r ${REALM_NAME} \
-  -s clientId=flask-backend -s enabled=true -s publicClient=true -s standardFlowEnabled=true \
+  -s clientId=mes-local-cloud-public -s enabled=true -s publicClient=true -s standardFlowEnabled=true \
   -s directAccessGrantsEnabled=true -s 'redirectUris=["https://localhost/*","http://localhost/*"]' \
   -s 'webOrigins=["https://localhost","http://localhost"]' -s protocol=openid-connect || true
 
-echo "Ensuring admin-cli (confidential) client is configured"
-docker exec ${KC_CONTAINER} ${KCADM} get clients -r ${REALM_NAME} --fields clientId | jq -r '.[] | .clientId' | grep -q '^admin-cli$' || \
-  docker exec ${KC_CONTAINER} ${KCADM} create clients -r ${REALM_NAME} -s clientId=admin-cli -s enabled=true -s publicClient=false -s serviceAccountsEnabled=true -s protocol=openid-connect
+echo "Creating admin query client: mes-local-cloud-admin-query (confidential, service account)"
+docker exec ${KC_CONTAINER} ${KCADM} get clients -r ${REALM_NAME} --fields clientId | jq -r '.[] | .clientId' | grep -q '^mes-local-cloud-admin-query$' || \
+  docker exec ${KC_CONTAINER} ${KCADM} create clients -r ${REALM_NAME} -s clientId=mes-local-cloud-admin-query -s enabled=true -s publicClient=false -s serviceAccountsEnabled=true -s standardFlowEnabled=false -s directAccessGrantsEnabled=false -s fullScopeAllowed=false -s protocol=openid-connect
 
 echo "Creating users: admin, alice, moderator and setting passwords"
 docker exec ${KC_CONTAINER} ${KCADM} create users -r ${REALM_NAME} -s username=admin -s enabled=true || true
@@ -54,14 +54,16 @@ docker exec ${KC_CONTAINER} ${KCADM} add-roles -r ${REALM_NAME} --uusername alic
 # moderator -> moderator
 docker exec ${KC_CONTAINER} ${KCADM} add-roles -r ${REALM_NAME} --uusername moderator --rolename moderator || true
 
-echo "Map realm-management roles to admin-cli service account"
-ADMIN_CLIENT_ID=$(docker exec ${KC_CONTAINER} ${KCADM} get clients -r ${REALM_NAME} --fields id,clientId | jq -r '.[] | select(.clientId=="admin-cli") | .id')
+echo "Configuring service account roles for mes-local-cloud-admin-query"
+ADMIN_CLIENT_ID=$(docker exec ${KC_CONTAINER} ${KCADM} get clients -r ${REALM_NAME} --fields id,clientId | jq -r '.[] | select(.clientId=="mes-local-cloud-admin-query") | .id')
 if [ -n "${ADMIN_CLIENT_ID}" ]; then
   SA_USER_ID=$(docker exec ${KC_CONTAINER} ${KCADM} get clients/${ADMIN_CLIENT_ID}/service-account-user -r ${REALM_NAME} | jq -r '.id')
   if [ -n "${SA_USER_ID}" ]; then
+    echo "  Assigning realm-management roles to service account"
     docker exec ${KC_CONTAINER} ${KCADM} add-roles -r ${REALM_NAME} --uid ${SA_USER_ID} --cclientid realm-management --rolename view-users || true
     docker exec ${KC_CONTAINER} ${KCADM} add-roles -r ${REALM_NAME} --uid ${SA_USER_ID} --cclientid realm-management --rolename query-users || true
-    docker exec ${KC_CONTAINER} ${KCADM} add-roles -r ${REALM_NAME} --uid ${SA_USER_ID} --cclientid realm-management --rolename manage-users || true
+    docker exec ${KC_CONTAINER} ${KCADM} add-roles -r ${REALM_NAME} --uid ${SA_USER_ID} --cclientid realm-management --rolename query-groups || true
+    echo "  Service account roles configured"
   fi
 fi
 
