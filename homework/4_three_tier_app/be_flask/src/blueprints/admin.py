@@ -15,7 +15,8 @@ def list_users():
 
     users = UserProfile.query.all()
     results = []
-    # Attempt to resolve human-friendly usernames from Keycloak Admin API if available.
+    
+    # Get Keycloak admin API client
     kc = None
     try:
         kc = get_admin_keycloak_auth()
@@ -24,32 +25,49 @@ def list_users():
 
     minio_client = current_app.config.get('MINIO_CLIENT')
 
-    for u in users:
-        username = 'See Keycloak'
-        try:
-            if kc:
-                kc_user = kc.admin_get_user(str(u.keycloak_id))
-                if kc_user and kc_user.get('username'):
-                    username = kc_user.get('username')
-        except Exception:
-            # Any failure to call Keycloak admin API should not prevent listing users
-            username = 'See Keycloak'
+    # Fetch user details from Keycloak
+    if kc:
+        keycloak_ids = [str(u.keycloak_id) for u in users]
+        users_data = kc.admin_get_users_with_roles(keycloak_ids)
+        
+        for u in users:
+            keycloak_id_str = str(u.keycloak_id)
+            user_info = users_data.get(keycloak_id_str)
+            
+            if not user_info:
+                continue
+            
+            # Filter: only include users with 'user' realm role
+            if 'user' not in user_info.get('roles', []):
+                continue
+            
+            username = user_info.get('username', 'Unknown')
+            
+            # Calculate used quota
+            used_quota = 0
+            if minio_client and username != 'Unknown':
+                try:
+                    used_quota = get_user_usage_bytes(username, minio_client)
+                except Exception:
+                    used_quota = 0
 
-        # Calculate used quota
-        used_quota = 0
-        if minio_client and username != 'See Keycloak':
-            try:
-                used_quota = get_user_usage_bytes(username, minio_client)
-            except Exception:
-                used_quota = 0
-
-        results.append({
-            'keycloak_id': str(u.keycloak_id),
-            'role': 'Managed by Keycloak',  # Role not stored in DB
-            'quota': u.quota,
-            'used_quota': used_quota,
-            'username': username
-        })
+            results.append({
+                'keycloak_id': keycloak_id_str,
+                'role': 'Managed by Keycloak',
+                'quota': u.quota,
+                'used_quota': used_quota,
+                'username': username
+            })
+    else:
+        # Fallback: if Keycloak admin API is not available, return users without filtering
+        for u in users:
+            results.append({
+                'keycloak_id': str(u.keycloak_id),
+                'role': 'Managed by Keycloak',
+                'quota': u.quota,
+                'used_quota': 0,
+                'username': 'See Keycloak'
+            })
 
     return jsonify({'users': results})
 

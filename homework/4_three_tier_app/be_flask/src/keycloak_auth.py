@@ -315,6 +315,100 @@ class KeycloakAuth:
             logger.warning(f'Failed to list users from Keycloak admin API: {e}')
             return None
 
+    def admin_get_user_realm_roles(self, keycloak_id: str) -> Optional[list]:
+        """Fetch a user's realm-level roles from Keycloak Admin API.
+
+        Args:
+            keycloak_id: The Keycloak user ID
+            
+        Returns:
+            List of role representations, or None if not found or admin access not available.
+        """
+        try:
+            token = self.get_admin_token()
+            if not token:
+                return None
+
+            headers = {'Authorization': 'Bearer ' + token}
+            url = f"{self.server_url}/admin/realms/{self.realm}/users/{keycloak_id}/role-mappings/realm"
+            resp = requests.get(url, headers=headers, timeout=10, verify=self._get_verify_arg())
+            
+            if resp.status_code == 404:
+                return None
+            if resp.status_code == 401:
+                token = self.get_admin_token()
+                if not token:
+                    return None
+                headers = {'Authorization': 'Bearer ' + token}
+                resp = requests.get(url, headers=headers, timeout=10, verify=self._get_verify_arg())
+
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as e:
+            logger.warning(f'Failed to fetch realm roles for user {keycloak_id} from Keycloak admin API: {e}')
+            return None
+
+    def admin_get_users_with_roles(self, keycloak_ids: list) -> Dict[str, Dict]:
+        """Efficiently fetch multiple users with their realm roles from Keycloak Admin API.
+
+        Args:
+            keycloak_ids: List of Keycloak user IDs to fetch
+            
+        Returns:
+            Dictionary mapping keycloak_id to user data with roles: 
+            {keycloak_id: {'username': str, 'roles': [str], 'enabled': bool}, ...}
+        """
+        result = {}
+        try:
+            token = self.get_admin_token()
+            if not token:
+                return result
+
+            headers = {'Authorization': 'Bearer ' + token}
+            
+            # Fetch all users first
+            for keycloak_id in keycloak_ids:
+                try:
+                    # Get user info
+                    user_url = f"{self.server_url}/admin/realms/{self.realm}/users/{keycloak_id}"
+                    user_resp = requests.get(user_url, headers=headers, timeout=10, verify=self._get_verify_arg())
+                    
+                    if user_resp.status_code == 401:
+                        token = self.get_admin_token()
+                        if not token:
+                            continue
+                        headers = {'Authorization': 'Bearer ' + token}
+                        user_resp = requests.get(user_url, headers=headers, timeout=10, verify=self._get_verify_arg())
+                    
+                    if user_resp.status_code != 200:
+                        continue
+                    
+                    user_data = user_resp.json()
+                    
+                    # Get user roles
+                    roles_url = f"{self.server_url}/admin/realms/{self.realm}/users/{keycloak_id}/role-mappings/realm"
+                    roles_resp = requests.get(roles_url, headers=headers, timeout=10, verify=self._get_verify_arg())
+                    
+                    roles = []
+                    if roles_resp.status_code == 200:
+                        roles_data = roles_resp.json()
+                        roles = [role.get('name') for role in roles_data if role.get('name')]
+                    
+                    result[keycloak_id] = {
+                        'username': user_data.get('username', 'Unknown'),
+                        'roles': roles,
+                        'enabled': user_data.get('enabled', False)
+                    }
+                    
+                except Exception as e:
+                    logger.warning(f'Failed to fetch user {keycloak_id}: {e}')
+                    continue
+                    
+        except Exception as e:
+            logger.warning(f'Failed to fetch users with roles from Keycloak admin API: {e}')
+            
+        return result
+
 
 def get_keycloak_auth() -> KeycloakAuth:
     """Get or create KeycloakAuth instance from app config.
@@ -438,14 +532,14 @@ def require_role(required_role: str):
 
 
 def require_admin() -> None:
-    """Check if user has admin privileges.
+    """Check if user has admin or moderator privileges.
     
     Role is fetched from Flask g (set by authenticate_user from Keycloak token).
         
     Raises:
-        403: User is not admin
+        403: User is not admin or moderator
     """
     # Get role from Flask g (fresh from Keycloak token)
     user_role = g.user_role
-    if user_role != 'admin':
-        abort(403, description='Admin role required')
+    if user_role not in ['admin', 'moderator']:
+        abort(403, description='Admin or moderator role required')

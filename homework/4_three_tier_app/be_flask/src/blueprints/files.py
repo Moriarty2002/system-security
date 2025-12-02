@@ -165,29 +165,6 @@ def list_files():
     })
 
 
-@files_bp.route('/users', methods=['GET'])
-def list_users_for_moderator():
-    """List all usernames (moderator only)."""
-    _, user = authenticate_user()
-
-    # Only moderators can access this endpoint
-    if getattr(user, 'role', '') != 'moderator':
-        abort(403, description='only moderators can list users')
-
-    # Get all users from Keycloak via admin API
-    usernames = []
-    try:
-        kc = get_admin_keycloak_auth()
-        if kc:
-            all_users = kc.admin_list_all_users()
-            usernames = [u.get('username') for u in all_users if u.get('username')]
-            usernames.sort()
-    except Exception as e:
-        logger.error(f"Failed to list users from Keycloak: {e}")
-
-    return jsonify({'users': usernames})
-
-
 @files_bp.route('/files/<filename>', methods=['GET'])
 def download_file(filename):
     """Download a file."""

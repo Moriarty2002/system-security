@@ -50,13 +50,13 @@
     let currentPath = '';
 
     async function loadUsers(){
-      const r = await fetch('/api/users', {headers: headers()});
+      const r = await fetch('/api/admin/users', {headers: headers()});
       if(!r.ok) return;
       const j = await r.json();
       const sel = document.getElementById('userSelect');
       sel.innerHTML = '';
       sel.appendChild(new Option('(select user)', ''));
-      j.users.forEach(u => sel.appendChild(new Option(u, u)));
+      j.users.forEach(u => sel.appendChild(new Option(u.username, u.username)));
     }
 
     async function downloadFile(name, target){
