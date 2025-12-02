@@ -17,13 +17,13 @@ CREATE TABLE IF NOT EXISTS users (
 -- Passwords are managed by Vault at secret/mes_local_cloud/app/flask
 
 INSERT INTO users (username, role, quota, password_hash)
-SELECT 'admin', 'admin', 0, 'scrypt:32768:8:1$HsHTdd40QlxGkm8G$9080b4490ee5427c1efed372b05905282b46470bdb5a91840a544d434ec60b2e357c00d8d7c3b67468fdc3df5fe873850f7fbed6522f90448876dfe42f2f6e1e'
+SELECT 'admin', 'admin', 0, 'scrypt:32768:8:1$V4ydE600Vx2kVI2t$2b683518ac5a36cb323bfe091aab4d38c946cdbfe3f7b4c2e72eb3ddce408f30ca395613c438ca9400e86e36db12560b6992221582c7f9b297bbeb64cdacb7ad'
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin');
 
 INSERT INTO users (username, role, quota, password_hash)
-SELECT 'alice', 'user', 104857600, 'scrypt:32768:8:1$s3tKR1ih3wDUE5tx$f6b8bf09ea46337ca542d1774d060b967378d4c2d5dc075992853fcfbdacd713b36e16cc713704d956c7459e8657a1901abf7842fe543121a14b704b509b646c'
+SELECT 'alice', 'user', 104857600, 'scrypt:32768:8:1$BqiXqaiZbB4GKzcK$4949a26ea46b0ffaf11f88103cbe867b6a00aaa07050403e748c2362e90d7aeaf07e0e7b7c1cab8e4ede40d790146b42796c826ba8af906e9950e0fca818d5c8'
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'alice');
 
 INSERT INTO users (username, role, quota, password_hash)
-SELECT 'moderator', 'moderator', 0, 'scrypt:32768:8:1$Vjdq1RLdf90xSwDa$ccd4a6b54a0a5d9e44d52d0c8f32b5e8bf0ef8ccb6143b7ccba2378e3e3789c5e9337bf77f2831b9b09621bdaf46c8f63550decac0bde61b5a0184e58b231100'
+SELECT 'moderator', 'moderator', 0, 'scrypt:32768:8:1$gSoM9myIzWuvij80$e337a3df09ce25586bf6e7f8b965ffb3004ed5b6f20cac3f152cdf0c95e95f685babb4c4a02aa01d2a0118a5f28efbf8714e5108f0e3b671cec6a8ae9935252a'
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'moderator');

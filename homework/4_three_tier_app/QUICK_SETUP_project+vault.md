@@ -173,7 +173,7 @@ echo "✅ Setup complete! Access https://localhost"
 
 ## Next Steps
 
-1. Test login at https://localhost
+1. Access the application at https://localhost — the app will redirect you to Keycloak for authentication.
 2. Upload files as alice (user role)
 3. Manage users as admin
 4. Check Vault audit logs

@@ -26,7 +26,7 @@ be_flask/
 
 ## Features
 
-- **User Authentication**: JWT-based authentication with role-based access control
+- **User Authentication**: Authentication is delegated to Keycloak (OpenID Connect). The backend validates Keycloak-issued JWTs and implements role-based access control based on token claims.
 - **File Management**: Upload, download, delete files with quota enforcement
 - **User Management**: Admin interface for user creation and quota management
 - **Role-based Access**: Support for user, moderator, and admin roles
@@ -37,8 +37,10 @@ be_flask/
 ## API Endpoints
 
 ### Authentication
-- `POST /auth/login` - User login
-- `GET /auth/whoami` - Get current user info
+- `GET /auth/whoami` - Get current user info (frontend obtains tokens via Keycloak-hosted login; the backend validates these tokens)
+
+Notes:
+- The application does not handle user credential submission. Users authenticate via the Keycloak-hosted login page (OIDC). The backend exposes `/auth/config` to let the frontend discover Keycloak server URL, realm, and client id.
 
 ### File Operations
 - `POST /files/upload` - Upload a file

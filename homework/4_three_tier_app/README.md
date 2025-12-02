@@ -169,7 +169,7 @@ docker compose logs -f backend
 - **Keycloak Admin**: http://localhost:8080
 - **MinIO Console**: http://localhost:9001
 
-**Authentication**: Click "Login with Keycloak" and use your Keycloak credentials!
+**Authentication**: Authentication is performed by Keycloak (OIDC). The application redirects users to Keycloak for login; no credentials are collected by the application itself.
 
 ## 📚 Documentation
 
@@ -178,14 +178,12 @@ docker compose logs -f backend
 
 ## 🔑 Authentication Flow
 
-1. User clicks "Login with Keycloak" on frontend
-2. Frontend redirects to Keycloak login page
-3. User enters credentials in Keycloak
-4. Keycloak validates and returns JWT token
-5. Frontend stores token and makes API requests
-6. Backend validates token with Keycloak public keys
-7. Backend creates/updates user profile on first login
-8. Backend synchronizes roles from Keycloak
+1. User visits the application and is redirected to Keycloak for authentication (hosted login page)
+2. User authenticates with Keycloak (supports username/password, social logins like Google, and 2FA configured in Keycloak)
+3. Keycloak redirects back to the application with an authorization code; the frontend exchanges it (via the Keycloak adapter) and receives tokens
+4. Frontend stores the access token in session storage and calls `GET /auth/whoami` to obtain user metadata
+5. Backend validates tokens using Keycloak public keys (RS256) and creates/updates a local user profile on first login
+6. Backend synchronizes roles from Keycloak to implement role-based access control
 
 ## 🗄️ Database Schema
 

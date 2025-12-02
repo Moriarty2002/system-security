@@ -252,6 +252,66 @@ class KeycloakAuth:
             logger.warning(f'Failed to fetch user {keycloak_id} from Keycloak admin API: {e}')
             return None
 
+    def admin_search_users(self, username: str) -> Optional[list]:
+        """Search for users by username in Keycloak Admin API.
+
+        Args:
+            username: Username to search for
+            
+        Returns:
+            List of user representations, or None if admin access not available.
+        """
+        try:
+            token = self.get_admin_token()
+            if not token:
+                return None
+
+            headers = {'Authorization': 'Bearer ' + token}
+            url = f"{self.server_url}/admin/realms/{self.realm}/users"
+            params = {'username': username, 'exact': 'true'}
+            resp = requests.get(url, headers=headers, params=params, timeout=10, verify=self._get_verify_arg())
+            
+            if resp.status_code == 401:
+                token = self.get_admin_token()
+                if not token:
+                    return None
+                headers = {'Authorization': 'Bearer ' + token}
+                resp = requests.get(url, headers=headers, params=params, timeout=10, verify=self._get_verify_arg())
+
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as e:
+            logger.warning(f'Failed to search user {username} from Keycloak admin API: {e}')
+            return None
+
+    def admin_list_all_users(self) -> Optional[list]:
+        """List all users from Keycloak Admin API.
+
+        Returns:
+            List of user representations, or None if admin access not available.
+        """
+        try:
+            token = self.get_admin_token()
+            if not token:
+                return None
+
+            headers = {'Authorization': 'Bearer ' + token}
+            url = f"{self.server_url}/admin/realms/{self.realm}/users"
+            resp = requests.get(url, headers=headers, timeout=10, verify=self._get_verify_arg())
+            
+            if resp.status_code == 401:
+                token = self.get_admin_token()
+                if not token:
+                    return None
+                headers = {'Authorization': 'Bearer ' + token}
+                resp = requests.get(url, headers=headers, timeout=10, verify=self._get_verify_arg())
+
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as e:
+            logger.warning(f'Failed to list users from Keycloak admin API: {e}')
+            return None
+
 
 def get_keycloak_auth() -> KeycloakAuth:
     """Get or create KeycloakAuth instance from app config.

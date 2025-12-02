@@ -5,8 +5,8 @@ from flask import Blueprint, jsonify, request, send_file, abort, current_app
 from werkzeug.utils import secure_filename
 from sqlalchemy import func
 
-from ..keycloak_auth import authenticate_user
-from ..models import db, User, BinItem
+from ..keycloak_auth import authenticate_user, get_admin_keycloak_auth
+from ..models import db, UserProfile, BinItem
 from ..utils_minio import (
     get_user_usage_bytes,
     get_user_files_list,
@@ -70,10 +70,13 @@ def upload_file():
         file_stream.seek(0)
 
         # Lock the user row and check quota inside a transaction
-        db_user = db.session.query(User).with_for_update().get(username)
+        # Use the user object already fetched by authenticate_user
+        db_user = user
         if not db_user:
-            logger.error(f"User {username} not found during upload")
+            logger.error(f"User {username} not found during upload - user object is None")
             abort(403, description='Unknown user')
+        
+        logger.info(f"Upload by {username}, keycloak_id={db_user.keycloak_id}, quota={db_user.quota}")
 
         current_usage = get_user_usage_bytes(username, minio_client)
         if current_usage + file_size > (db_user.quota or 0):
@@ -135,8 +138,23 @@ def list_files():
     if target == username:
         quota = user.quota
     else:
-        target_user = User.query.get(target)
-        quota = target_user.quota if target_user else 0
+        # For moderators viewing other users, need to get user by username via Keycloak
+        try:
+            kc = get_admin_keycloak_auth()
+            if kc:
+                # Search for user by username in Keycloak
+                kc_users = kc.admin_search_users(target)
+                if kc_users and len(kc_users) > 0:
+                    target_keycloak_id = kc_users[0].get('id')
+                    target_user = UserProfile.query.filter_by(keycloak_id=target_keycloak_id).first()
+                    quota = target_user.quota if target_user else 0
+                else:
+                    quota = 0
+            else:
+                quota = 0
+        except Exception as e:
+            logger.warning(f"Failed to get quota for user {target}: {e}")
+            quota = 0
 
     return jsonify({
         'files': files,
@@ -156,8 +174,16 @@ def list_users_for_moderator():
     if getattr(user, 'role', '') != 'moderator':
         abort(403, description='only moderators can list users')
 
-    users = User.query.order_by(User.username).all()
-    usernames = [u.username for u in users]
+    # Get all users from Keycloak via admin API
+    usernames = []
+    try:
+        kc = get_admin_keycloak_auth()
+        if kc:
+            all_users = kc.admin_list_all_users()
+            usernames = [u.get('username') for u in all_users if u.get('username')]
+            usernames.sort()
+    except Exception as e:
+        logger.error(f"Failed to list users from Keycloak: {e}")
 
     return jsonify({'users': usernames})
 
