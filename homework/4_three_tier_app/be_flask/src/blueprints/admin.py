@@ -23,7 +23,7 @@ def list_users():
     except Exception:
         kc = None
 
-    minio_client = current_app.config.get('MINIO_CLIENT')
+    s3_client = current_app.config.get('S3_CLIENT')
 
     # Fetch user details from Keycloak
     if kc:
@@ -45,9 +45,9 @@ def list_users():
             
             # Calculate used quota
             used_quota = 0
-            if minio_client and username != 'Unknown':
+            if s3_client and username != 'Unknown':
                 try:
-                    used_quota = get_user_usage_bytes(username, minio_client)
+                    used_quota = get_user_usage_bytes(username, s3_client)
                 except Exception:
                     used_quota = 0
 

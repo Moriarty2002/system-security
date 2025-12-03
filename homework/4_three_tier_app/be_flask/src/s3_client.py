@@ -240,19 +240,8 @@ class S3Client:
             
             logger.info("Successfully obtained temporary credentials via Roles Anywhere")
             return s3_client
-                
-        except NotImplementedError as e:
-            # Fallback: use environment variables or IAM role if available
-            logger.warning(f"Roles Anywhere not fully configured: {e}")
-            logger.info("Falling back to default AWS credential chain (environment/IAM role)")
-            
-            return boto3.client(
-                's3',
-                region_name=self.region,
-                config=Config(signature_version='s3v4')
-            )
         except Exception as e:
-            logger.error(f"Failed to create S3 client: {e}")
+            logger.error(f"Failed to create S3 client with Roles Anywhere: {e}")
             raise
 
     def _ensure_bucket(self) -> None:

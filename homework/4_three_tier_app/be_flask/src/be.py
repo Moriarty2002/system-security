@@ -104,7 +104,7 @@ def create_app(config_object=None) -> Flask:
 
     # Initialize S3 client
     try:
-        app.config['MINIO_CLIENT'] = config.get_s3_client()
+        app.config['S3_CLIENT'] = config.get_s3_client()
     except Exception as e:
         print(f"❌ Failed to initialize S3 client: {e}")
         raise

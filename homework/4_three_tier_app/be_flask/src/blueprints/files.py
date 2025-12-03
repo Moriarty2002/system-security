@@ -30,7 +30,7 @@ def upload_file():
     """Upload a file for the authenticated user."""
     try:
         username, user = authenticate_user()
-        minio_client = current_app.config['MINIO_CLIENT']
+        s3_client = current_app.config['S3_CLIENT']
 
         # Prevent admin and moderator users from uploading files
         user_role = getattr(user, 'role', 'user')
@@ -55,7 +55,7 @@ def upload_file():
         if subpath.startswith('/') or '..' in subpath:
             return jsonify({'error': ERROR_INVALID_PATH}), 400
 
-        # Construct full file path (use forward slashes for MinIO)
+        # S3)
         if subpath:
             # Clean up subpath and ensure forward slashes
             subpath = subpath.strip('/').replace('\\', '/')
@@ -78,15 +78,15 @@ def upload_file():
         
         logger.info(f"Upload by {username}, keycloak_id={db_user.keycloak_id}, quota={db_user.quota}")
 
-        current_usage = get_user_usage_bytes(username, minio_client)
+        current_usage = get_user_usage_bytes(username, s3_client)
         if current_usage + file_size > (db_user.quota or 0):
             logger.warning(f"User {username} exceeded quota: current={current_usage}, file_size={file_size}, quota={db_user.quota}")
             return jsonify({'error': 'quota exceeded'}), 403
 
-        # Upload to MinIO
+        # S3
         try:
             file_stream.seek(0)
-            success = minio_client.upload_file(
+            success = s3_client.upload_file(
                 username,
                 full_path,
                 file_stream,
@@ -95,7 +95,7 @@ def upload_file():
             )
             
             if not success:
-                raise RuntimeError("MinIO upload failed")
+                raise RuntimeError("S3 upload failed")
                 
         except Exception as e:
             logger.error(f"Failed to upload file {filename} for user {username}: {str(e)}")
@@ -115,7 +115,7 @@ def upload_file():
 def list_files():
     """List files for user (or another user if moderator)."""
     username, user = authenticate_user()
-    minio_client = current_app.config['MINIO_CLIENT']
+    s3_client = current_app.config['S3_CLIENT']
 
     # Prevent admin users from listing files
     if getattr(user, 'role', 'user') == 'admin':
@@ -131,8 +131,8 @@ def list_files():
     if subpath.startswith('/') or '..' in subpath:
         abort(400, description='invalid path')
 
-    files = get_user_files_list(target, minio_client, subpath)
-    usage = get_user_usage_bytes(target, minio_client)
+    files = get_user_files_list(target, s3_client, subpath)
+    usage = get_user_usage_bytes(target, s3_client)
 
     quota = None
     if target == username:
@@ -169,7 +169,7 @@ def list_files():
 def download_file(filename):
     """Download a file."""
     username, user = authenticate_user()
-    minio_client = current_app.config['MINIO_CLIENT']
+    s3_client = current_app.config['S3_CLIENT']
 
     # Prevent admin users from downloading files
     if getattr(user, 'role', 'user') == 'admin':
@@ -186,15 +186,15 @@ def download_file(filename):
     if subpath.startswith('/') or '..' in subpath:
         abort(400, description=ERROR_INVALID_PATH)
 
-    # Construct full path (use forward slashes for MinIO)
+    # S3)
     if subpath:
         subpath = subpath.strip('/').replace('\\', '/')
         full_item_path = f"{subpath}/{filename}"
     else:
         full_item_path = filename
 
-    # Get file from MinIO
-    file_data = minio_client.download_file(target, full_item_path)
+    # S3
+    file_data = s3_client.download_file(target, full_item_path)
     
     if file_data is None:
         return jsonify({'error': 'file not found'}), 404
@@ -212,7 +212,7 @@ def download_file(filename):
 def delete_file(filename):
     """Move a file or directory to bin."""
     username, user = authenticate_user()
-    minio_client = current_app.config['MINIO_CLIENT']
+    s3_client = current_app.config['S3_CLIENT']
 
     # Prevent admin users from deleting files
     if getattr(user, 'role', 'user') == 'admin':
@@ -229,7 +229,7 @@ def delete_file(filename):
     if subpath.startswith('/') or '..' in subpath:
         abort(400, description=ERROR_INVALID_PATH)
 
-    # Construct full path (use forward slashes for MinIO)
+    # S3)
     if subpath:
         subpath = subpath.strip('/').replace('\\', '/')
         full_item_path = f"{subpath}/{filename}"
@@ -237,23 +237,23 @@ def delete_file(filename):
         full_item_path = filename
 
     # Check if it's a directory or file
-    is_directory = minio_client.is_directory(target, full_item_path)
-    is_file = minio_client.file_exists(target, full_item_path)
+    is_directory = s3_client.is_directory(target, full_item_path)
+    is_file = s3_client.file_exists(target, full_item_path)
     
     if not is_directory and not is_file:
         return jsonify({'error': 'file not found'}), 404
 
     # Calculate size
     if is_directory:
-        size = get_directory_size(target, full_item_path, minio_client)
+        size = get_directory_size(target, full_item_path, s3_client)
         item_type = 'directory'
     else:
-        size = minio_client.get_file_size(target, full_item_path) or 0
+        size = s3_client.get_file_size(target, full_item_path) or 0
         item_type = 'file'
 
     # Move to bin
     try:
-        bin_path = move_to_bin(target, full_item_path, minio_client, is_directory=is_directory)
+        bin_path = move_to_bin(target, full_item_path, s3_client, is_directory=is_directory)
         
         # Record in database
         bin_item = BinItem(
@@ -278,7 +278,7 @@ def create_directory():
     """Create a directory for the authenticated user."""
     try:
         username, user = authenticate_user()
-        minio_client = current_app.config['MINIO_CLIENT']
+        s3_client = current_app.config['S3_CLIENT']
 
         # Prevent admin and moderator users from creating directories
         user_role = getattr(user, 'role', 'user')
@@ -294,17 +294,17 @@ def create_directory():
         if not dirname or dirname.startswith('/') or '..' in dirname:
             return jsonify({'error': ERROR_INVALID_PATH}), 400
 
-        # In MinIO, directories don't really exist - they're implicit from object paths
+        # S3, directories don't really exist - they're implicit from object paths
         # We'll create a .directory marker file to represent the directory
         marker_path = f"{dirname}/.directory" if not dirname.endswith('/') else f"{dirname}.directory"
         
         # Check if it already exists
-        if minio_client.file_exists(username, marker_path):
+        if s3_client.file_exists(username, marker_path):
             return jsonify({'error': 'directory already exists'}), 409
 
         # Create directory marker
         marker_data = io.BytesIO(b'')
-        success = minio_client.upload_file(
+        success = s3_client.upload_file(
             username,
             marker_path,
             marker_data,
@@ -340,7 +340,7 @@ def list_bin():
 def restore_from_bin_endpoint(item_id):
     """Restore an item from bin."""
     username, user = authenticate_user()
-    minio_client = current_app.config['MINIO_CLIENT']
+    s3_client = current_app.config['S3_CLIENT']
 
     # Prevent admin users from restoring from bin
     if getattr(user, 'role', 'user') == 'admin':
@@ -348,7 +348,7 @@ def restore_from_bin_endpoint(item_id):
         abort(403, description='admins cannot restore from bin')
 
     try:
-        success = restore_from_bin(item_id, username, minio_client)
+        success = restore_from_bin(item_id, username, s3_client)
         if not success:
             return jsonify({'error': 'item not found or access denied'}), 404
         
@@ -363,7 +363,7 @@ def restore_from_bin_endpoint(item_id):
 def permanently_delete_from_bin_endpoint(item_id):
     """Permanently delete an item from bin."""
     username, user = authenticate_user()
-    minio_client = current_app.config['MINIO_CLIENT']
+    s3_client = current_app.config['S3_CLIENT']
 
     # Prevent admin users from permanently deleting from bin
     if getattr(user, 'role', 'user') == 'admin':
@@ -371,7 +371,7 @@ def permanently_delete_from_bin_endpoint(item_id):
         abort(403, description='admins cannot permanently delete from bin')
 
     try:
-        success = permanently_delete_from_bin(item_id, username, minio_client)
+        success = permanently_delete_from_bin(item_id, username, s3_client)
         if not success:
             return jsonify({'error': 'item not found or access denied'}), 404
         
@@ -386,13 +386,13 @@ def permanently_delete_from_bin_endpoint(item_id):
 def cleanup_bin():
     """Clean up expired bin items (admin only)."""
     username, user = authenticate_user()
-    minio_client = current_app.config['MINIO_CLIENT']
+    s3_client = current_app.config['S3_CLIENT']
 
     if getattr(user, 'role', '') != 'admin':
         abort(403, description='only admins can cleanup bin')
 
     try:
-        cleaned_count = cleanup_expired_bin_items(minio_client)
+        cleaned_count = cleanup_expired_bin_items(s3_client)
         logger.info(f"Admin {username} cleaned up {cleaned_count} expired bin items")
         return jsonify({'status': 'cleanup completed', 'items_cleaned': cleaned_count})
     except Exception as e:

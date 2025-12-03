@@ -183,15 +183,6 @@ class Config:
             logger.info("S3 client initialized with AWS Roles Anywhere credentials from Vault")
         return self._s3_client
 
-    def get_minio_client(self):
-        """Get MinIO client instance with credentials from Vault.
-        
-        DEPRECATED: Use get_s3_client() instead for AWS S3 access.
-        This method is kept for backward compatibility.
-        """
-        logger.warning("get_minio_client() is deprecated. Use get_s3_client() for AWS S3 access.")
-        return self.get_s3_client()
-
     def get_user_password(self, username: str) -> str:
         """Get default password for a user from Vault.
         
