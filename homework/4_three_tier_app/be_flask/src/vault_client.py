@@ -244,11 +244,49 @@ class VaultClient:
         logger.error("Failed to retrieve MinIO config from Vault")
         raise RuntimeError("MinIO configuration not available from Vault. Ensure Vault is configured and accessible.")
     
-    def get_keycloak_config(self) -> Dict[str, str]:
+    def get_s3_config(self) -> Dict[str, str]:
+        """Get AWS S3 configuration with Roles Anywhere credentials from Vault.
+        
+        Returns:
+            Dictionary containing S3 connection parameters and credentials
+        """
+        s3_secrets = self._read_secret('mes_local_cloud/app/flask')
+        
+        if s3_secrets:
+            certificate = s3_secrets.get('flask_aws_s3_certificate')
+            private_key = s3_secrets.get('flask_aws_s3_key')
+            region = s3_secrets.get('aws_region')
+            bucket = s3_secrets.get('aws_s3_bucket')
+            trust_anchor_arn = s3_secrets.get('aws_trust_anchor_arn')
+            profile_arn = s3_secrets.get('aws_profile_arn')
+            role_arn = s3_secrets.get('aws_role_arn')
+            
+            # Validate all required fields are present
+            if not all([certificate, private_key, region, bucket, trust_anchor_arn, profile_arn, role_arn]):
+                raise RuntimeError(
+                    "Incomplete S3 configuration in Vault. Required: flask_aws_s3_certificate, "
+                    "flask_aws_s3_key, aws_region, aws_s3_bucket, aws_trust_anchor_arn, "
+                    "aws_profile_arn, aws_role_arn"
+                )
+            
+            return {
+                'certificate': certificate,
+                'private_key': private_key,
+                'region': region,
+                'bucket': bucket,
+                'trust_anchor_arn': trust_anchor_arn,
+                'profile_arn': profile_arn,
+                'role_arn': role_arn
+            }
+        
+        logger.error("Failed to retrieve S3 config from Vault")
+        raise RuntimeError("S3 configuration not available from Vault. Ensure Vault is configured and accessible.")
+    
+    def get_keycloak_config(self) -> Optional[Dict[str, str]]:
         """Get Keycloak configuration from Vault.
         
         Returns:
-            Dictionary containing Keycloak connection parameters
+            Dictionary containing Keycloak connection parameters, or None if not found
         """
         keycloak_secrets = self._read_secret('keycloak/client')
 

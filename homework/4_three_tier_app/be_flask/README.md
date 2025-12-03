@@ -12,14 +12,15 @@ be_flask/
 ├── __init__.py          # Application factory
 ├── models.py            # Database models
 ├── config.py            # Configuration management
+├── vault_client.py      # Vault client for secrets management
+├── s3_client.py         # AWS S3 client with Roles Anywhere authentication
 ├── auth.py              # Authentication and authorization logic
-├── utils.py             # Utility functions for file operations
+├── utils_minio.py       # Utility functions for S3 operations
 ├── blueprints/          # Route blueprints
 │   ├── auth.py          # Authentication endpoints
 │   ├── files.py         # File management endpoints
 │   └── admin.py         # Administrative endpoints
 ├── db_init/             # Database initialization scripts
-├── storage/             # User file storage directory
 ├── requirements.txt     # Python dependencies
 └── Dockerfile          # Docker configuration
 ```
@@ -27,10 +28,12 @@ be_flask/
 ## Features
 
 - **User Authentication**: Authentication is delegated to Keycloak (OpenID Connect). The backend validates Keycloak-issued JWTs and implements role-based access control based on token claims.
+- **File Storage**: Files stored in AWS S3 using IAM Roles Anywhere authentication with X.509 certificates
+- **Secrets Management**: All secrets (database credentials, S3 certificates, Keycloak config) managed by HashiCorp Vault
 - **File Management**: Upload, download, delete files with quota enforcement
 - **User Management**: Admin interface for user creation and quota management
 - **Role-based Access**: Support for user, moderator, and admin roles
-- **Database Integration**: SQLAlchemy with support for SQLite and PostgreSQL
+- **Database Integration**: SQLAlchemy with PostgreSQL
 - **Logging**: Comprehensive logging for debugging and monitoring
 - **Error Handling**: Proper error responses and logging
 
@@ -56,14 +59,31 @@ Notes:
 
 ## Configuration
 
-The application supports multiple configuration environments:
+The application requires configuration through HashiCorp Vault. All secrets are stored in Vault:
 
-- **Development**: Debug mode enabled, SQLite database
-- **Production**: Debug mode disabled, configurable database
+### Vault Secrets Required
 
-Set environment variables:
-- `SECRET_KEY`: JWT signing key
-- `DATABASE_URL`: Database connection string
+**Path: `mes_local_cloud/app/flask`**
+- `jwt_secret`: JWT signing key
+- `admin_password`, `alice_password`, `moderator_password`: User passwords
+- `flask_aws_s3_certificate`: X.509 certificate for AWS Roles Anywhere (PEM format)
+- `flask_aws_s3_key`: Private key for AWS Roles Anywhere (PEM format)
+- `aws_region`: AWS region (e.g., us-east-1)
+- `aws_s3_bucket`: S3 bucket name
+- `aws_trust_anchor_arn`: ARN of AWS Roles Anywhere trust anchor
+- `aws_profile_arn`: ARN of AWS Roles Anywhere profile
+- `aws_role_arn`: ARN of IAM role to assume
+
+**Path: `mes_local_cloud/database/postgres`**
+- `username`, `password`, `database`, `host`, `port`: PostgreSQL connection parameters
+
+**Path: `keycloak/client`**
+- `server_url`, `server_url_external`, `realm`, `client_id`, `client_secret`: Keycloak configuration
+
+### Environment Variables
+- `VAULT_ADDR`: Vault server address
+- `VAULT_ROLE_ID`: Vault AppRole role ID
+- `VAULT_SECRET_ID`: Vault AppRole secret ID
 - `FLASK_ENV`: Environment (development/production)
 
 ## Running the Application
@@ -86,7 +106,9 @@ The application is part of a larger Docker Compose setup in the parent directory
 
 ## Security Features
 
-- JWT token authentication
+- **AWS Roles Anywhere Authentication**: X.509 certificate-based authentication for S3 access (no long-term credentials)
+- **HashiCorp Vault Integration**: All secrets managed securely in Vault
+- JWT token authentication via Keycloak
 - Secure filename handling
 - Path traversal protection
 - Role-based access control

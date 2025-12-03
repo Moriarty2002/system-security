@@ -1,7 +1,8 @@
 """
-Utility functions for MinIO-based file storage operations.
+Utility functions for S3-based file storage operations.
 
-This module replaces the filesystem-based utils with MinIO object storage.
+This module provides file storage operations using AWS S3 with Roles Anywhere authentication.
+Previously used MinIO, now uses real AWS S3.
 """
 
 import io
@@ -9,17 +10,17 @@ import logging
 from typing import List, Dict, Any
 from datetime import datetime, timedelta, timezone
 from .models import db, BinItem
-from .minio_client import MinIOClient
+from .s3_client import S3Client
 
 logger = logging.getLogger(__name__)
 
 
-def get_user_usage_bytes(username: str, minio_client: MinIOClient) -> int:
-    """Calculate total bytes used by a user in MinIO.
+def get_user_usage_bytes(username: str, minio_client: S3Client) -> int:
+    """Calculate total bytes used by a user in S3.
 
     Args:
         username: User's username
-        minio_client: MinIO client instance
+        minio_client: S3 client instance (kept name for backward compatibility)
 
     Returns:
         Total bytes used
@@ -29,14 +30,14 @@ def get_user_usage_bytes(username: str, minio_client: MinIOClient) -> int:
 
 def get_user_files_list(
     username: str,
-    minio_client: MinIOClient,
+    minio_client: S3Client,
     subpath: str = ''
 ) -> List[Dict[str, Any]]:
     """Get list of files and directories for a user in a specific path.
 
     Args:
         username: User's username
-        minio_client: MinIO client instance
+        minio_client: S3 client instance (kept name for backward compatibility)
         subpath: Subpath within user's directory
 
     Returns:
@@ -71,15 +72,15 @@ def get_user_bin_items(username: str) -> List[Dict[str, Any]]:
 def move_to_bin(
     username: str,
     item_path: str,
-    minio_client: MinIOClient,
+    minio_client: S3Client,
     is_directory: bool = False
 ) -> str:
-    """Move an item to the bin in MinIO.
+    """Move an item to the bin in S3.
 
     Args:
         username: User's username
         item_path: Path to item relative to user directory
-        minio_client: MinIO client instance
+        minio_client: S3 client instance (kept name for backward compatibility)
         is_directory: Whether the item is a directory
 
     Returns:
@@ -105,14 +106,14 @@ def move_to_bin(
 def restore_from_bin(
     bin_item_id: int,
     username: str,
-    minio_client: MinIOClient
+    minio_client: S3Client
 ) -> bool:
-    """Restore an item from the bin in MinIO.
+    """Restore an item from the bin in S3.
 
     Args:
         bin_item_id: ID of bin item
         username: User's username
-        minio_client: MinIO client instance
+        minio_client: S3 client instance (kept name for backward compatibility)
 
     Returns:
         True if restored successfully
@@ -146,14 +147,14 @@ def restore_from_bin(
 def permanently_delete_from_bin(
     bin_item_id: int,
     username: str,
-    minio_client: MinIOClient
+    minio_client: S3Client
 ) -> bool:
-    """Permanently delete an item from the bin in MinIO.
+    """Permanently delete an item from the bin in S3.
 
     Args:
         bin_item_id: ID of bin item
         username: User's username
-        minio_client: MinIO client instance
+        minio_client: S3 client instance (kept name for backward compatibility)
 
     Returns:
         True if deleted successfully
@@ -170,7 +171,7 @@ def permanently_delete_from_bin(
         success = minio_client.delete_file(username, bin_item.bin_path)
     
     if not success:
-        logger.error(f"Failed to delete {bin_item.bin_path} from MinIO")
+        logger.error(f"Failed to delete {bin_item.bin_path} from S3")
         return False
     
     # Remove from database
@@ -180,11 +181,11 @@ def permanently_delete_from_bin(
     return True
 
 
-def cleanup_expired_bin_items(minio_client: MinIOClient) -> int:
-    """Clean up bin items older than 5 days from MinIO.
+def cleanup_expired_bin_items(minio_client: S3Client) -> int:
+    """Clean up bin items older than 5 days from S3.
 
     Args:
-        minio_client: MinIO client instance
+        minio_client: S3 client instance (kept name for backward compatibility)
 
     Returns:
         Number of items cleaned up
@@ -210,13 +211,13 @@ def cleanup_expired_bin_items(minio_client: MinIOClient) -> int:
     return cleaned_count
 
 
-def get_directory_size(username: str, dir_path: str, minio_client: MinIOClient) -> int:
+def get_directory_size(username: str, dir_path: str, minio_client: S3Client) -> int:
     """Calculate size of a directory recursively.
 
     Args:
         username: User's username
         dir_path: Directory path
-        minio_client: MinIO client instance
+        minio_client: S3 client instance (kept name for backward compatibility)
 
     Returns:
         Total size in bytes

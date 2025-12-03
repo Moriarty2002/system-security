@@ -102,18 +102,18 @@ def create_app(config_object=None) -> Flask:
         # Any Vault issues here should not prevent the app from starting; they will be raised later
         pass
 
-    # Initialize MinIO client
+    # Initialize S3 client
     try:
-        app.config['MINIO_CLIENT'] = config.get_minio_client()
+        app.config['MINIO_CLIENT'] = config.get_s3_client()
     except Exception as e:
-        print(f"❌ Failed to initialize MinIO client: {e}")
+        print(f"❌ Failed to initialize S3 client: {e}")
         raise
 
     # Setup logging
     setup_logging(app)
     
-    # Log MinIO initialization status
-    app.logger.info("✅ MinIO client initialized - using object storage")
+    # Log S3 initialization status
+    app.logger.info("✅ S3 client initialized - using AWS S3 with Roles Anywhere authentication")
     
     # Log Vault status and database URI
     if hasattr(config, 'vault_client'):

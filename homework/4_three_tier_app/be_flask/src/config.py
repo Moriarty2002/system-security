@@ -12,7 +12,7 @@ class Config:
         self._vault_client = None
         self._app_secrets = None
         self._db_config = None
-        self._minio_client = None
+        self._s3_client = None
         self._keycloak_config = None
 
     @property
@@ -159,27 +159,38 @@ class Config:
         
         raise RuntimeError("Database configuration not available from Vault")
 
-    def get_minio_client(self):
-        """Get MinIO client instance with credentials from Vault."""
-        if self._minio_client is None:
-            from .minio_client import MinIOClient
+    def get_s3_client(self):
+        """Get S3 client instance with AWS Roles Anywhere authentication from Vault."""
+        if self._s3_client is None:
+            from .s3_client import S3Client
             
-            # Get MinIO configuration from Vault
-            minio_config = self.vault_client.get_minio_config()
+            # Get S3 configuration from Vault
+            s3_config = self.vault_client.get_s3_config()
             
-            self._minio_client = MinIOClient(
-                endpoint=minio_config['endpoint'],
-                access_key=minio_config['access_key'],
-                secret_key=minio_config['secret_key'],
-                bucket_name=minio_config['bucket'],
-                secure=minio_config['use_ssl']
+            self._s3_client = S3Client(
+                region=s3_config['region'],
+                bucket_name=s3_config['bucket'],
+                trust_anchor_arn=s3_config['trust_anchor_arn'],
+                profile_arn=s3_config['profile_arn'],
+                role_arn=s3_config['role_arn'],
+                certificate_pem=s3_config['certificate'],
+                private_key_pem=s3_config['private_key']
             )
             
-            if not self._minio_client:
-                raise RuntimeError("Failed to initialize MinIO client")
+            if not self._s3_client:
+                raise RuntimeError("Failed to initialize S3 client")
             
-            logger.info("MinIO client initialized with credentials from Vault")
-        return self._minio_client
+            logger.info("S3 client initialized with AWS Roles Anywhere credentials from Vault")
+        return self._s3_client
+
+    def get_minio_client(self):
+        """Get MinIO client instance with credentials from Vault.
+        
+        DEPRECATED: Use get_s3_client() instead for AWS S3 access.
+        This method is kept for backward compatibility.
+        """
+        logger.warning("get_minio_client() is deprecated. Use get_s3_client() for AWS S3 access.")
+        return self.get_s3_client()
 
     def get_user_password(self, username: str) -> str:
         """Get default password for a user from Vault.

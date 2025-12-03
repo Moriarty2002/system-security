@@ -4,11 +4,17 @@ FROM python:3.10-slim
 # Set the working directory in the container
 WORKDIR /app
 
-# Ensure basic tools are present (curl, jq) for the CA installer
+# Ensure basic tools are present (curl, jq, wget) for the CA installer and AWS helper
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
-	&& apt-get install -y --no-install-recommends ca-certificates curl jq \
+	&& apt-get install -y --no-install-recommends ca-certificates curl jq wget \
 	&& rm -rf /var/lib/apt/lists/*
+
+# Install AWS Roles Anywhere credential helper (optional but recommended)
+RUN wget -q "https://rolesanywhere.amazonaws.com/releases/1.1.1/X86_64/Linux/aws_signing_helper" \
+    -O /usr/local/bin/aws_signing_helper \
+    && chmod +x /usr/local/bin/aws_signing_helper \
+    || echo "Warning: Could not install aws_signing_helper, will use fallback credentials"
 
 # Copy the dependencies file
 COPY requirements.txt .
