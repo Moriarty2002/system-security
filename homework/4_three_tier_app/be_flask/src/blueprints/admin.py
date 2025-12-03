@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request, current_app
 
 from ..keycloak_auth import authenticate_user, require_admin, get_admin_keycloak_auth
 from ..models import db, UserProfile
-from ..utils_minio import get_user_usage_bytes
+from ..utils_s3 import get_user_usage_bytes
 
 admin_bp = Blueprint('admin', __name__)
 

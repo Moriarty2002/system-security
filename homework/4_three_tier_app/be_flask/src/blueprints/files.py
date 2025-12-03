@@ -7,7 +7,7 @@ from sqlalchemy import func
 
 from ..keycloak_auth import authenticate_user, get_admin_keycloak_auth
 from ..models import db, UserProfile, BinItem
-from ..utils_minio import (
+from ..utils_s3 import (
     get_user_usage_bytes,
     get_user_files_list,
     move_to_bin,
@@ -33,7 +33,7 @@ def upload_file():
         s3_client = current_app.config['S3_CLIENT']
 
         # Prevent admin and moderator users from uploading files
-        user_role = getattr(user, 'role', 'user')
+        user_role = getattr(user, 'role', '')
         if user_role not in ['user']:
             logger.warning(f"{user_role.title()} user {username} attempted to upload file")
             return jsonify({'error': f'{user_role}s cannot upload files'}), 403
@@ -118,7 +118,7 @@ def list_files():
     s3_client = current_app.config['S3_CLIENT']
 
     # Prevent admin users from listing files
-    if getattr(user, 'role', 'user') == 'admin':
+    if getattr(user, 'role', '') == 'admin':
         logger.warning(f"Admin user {username} attempted to list files")
         abort(403, description='admins cannot access file listings')
 
@@ -172,7 +172,7 @@ def download_file(filename):
     s3_client = current_app.config['S3_CLIENT']
 
     # Prevent admin users from downloading files
-    if getattr(user, 'role', 'user') == 'admin':
+    if getattr(user, 'role', '') == 'admin':
         logger.warning(f"Admin user {username} attempted to download file")
         abort(403, description='admins cannot download files')
 
@@ -215,7 +215,7 @@ def delete_file(filename):
     s3_client = current_app.config['S3_CLIENT']
 
     # Prevent admin users from deleting files
-    if getattr(user, 'role', 'user') == 'admin':
+    if getattr(user, 'role', '') == 'admin':
         logger.warning(f"Admin user {username} attempted to delete file")
         abort(403, description='admins cannot delete files')
 
@@ -281,7 +281,7 @@ def create_directory():
         s3_client = current_app.config['S3_CLIENT']
 
         # Prevent admin and moderator users from creating directories
-        user_role = getattr(user, 'role', 'user')
+        user_role = getattr(user, 'role', '')
         if user_role not in ['user']:
             logger.warning(f"{user_role.title()} user {username} attempted to create directory")
             return jsonify({'error': f'{user_role}s cannot create directories'}), 403
@@ -328,7 +328,7 @@ def list_bin():
     username, user = authenticate_user()
 
     # Prevent admin users from accessing bin
-    if getattr(user, 'role', 'user') == 'admin':
+    if getattr(user, 'role', '') == 'admin':
         logger.warning(f"Admin user {username} attempted to access bin")
         abort(403, description='admins cannot access bin')
 
@@ -343,7 +343,7 @@ def restore_from_bin_endpoint(item_id):
     s3_client = current_app.config['S3_CLIENT']
 
     # Prevent admin users from restoring from bin
-    if getattr(user, 'role', 'user') == 'admin':
+    if getattr(user, 'role', '') == 'admin':
         logger.warning(f"Admin user {username} attempted to restore from bin")
         abort(403, description='admins cannot restore from bin')
 
@@ -366,7 +366,7 @@ def permanently_delete_from_bin_endpoint(item_id):
     s3_client = current_app.config['S3_CLIENT']
 
     # Prevent admin users from permanently deleting from bin
-    if getattr(user, 'role', 'user') == 'admin':
+    if getattr(user, 'role', '') == 'admin':
         logger.warning(f"Admin user {username} attempted to permanently delete from bin")
         abort(403, description='admins cannot permanently delete from bin')
 

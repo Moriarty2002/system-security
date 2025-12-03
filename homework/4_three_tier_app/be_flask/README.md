@@ -15,7 +15,7 @@ be_flask/
 ├── vault_client.py      # Vault client for secrets management
 ├── s3_client.py         # AWS S3 client with Roles Anywhere authentication
 ├── auth.py              # Authentication and authorization logic
-├── utils_minio.py       # Utility functions for S3 operations
+├── utils_s3.py       # Utility functions for S3 operations
 ├── blueprints/          # Route blueprints
 │   ├── auth.py          # Authentication endpoints
 │   ├── files.py         # File management endpoints

@@ -1,5 +1,7 @@
 import os
 import logging
+from .vault_client import get_vault_client
+from .s3_client import S3Client
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +21,6 @@ class Config:
     def vault_client(self):
         """Lazy-load Vault client."""
         if self._vault_client is None:
-            from .vault_client import get_vault_client
             self._vault_client = get_vault_client()
             if not self._vault_client.is_available():
                 raise RuntimeError("Vault client is not available. Application requires Vault for configuration.")
@@ -162,7 +163,6 @@ class Config:
     def get_s3_client(self):
         """Get S3 client instance with AWS Roles Anywhere authentication from Vault."""
         if self._s3_client is None:
-            from .s3_client import S3Client
             
             # Get S3 configuration from Vault
             s3_config = self.vault_client.get_s3_config()

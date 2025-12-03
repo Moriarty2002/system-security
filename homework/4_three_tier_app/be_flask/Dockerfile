@@ -10,7 +10,7 @@ RUN apt-get update \
 	&& apt-get install -y --no-install-recommends ca-certificates curl jq wget \
 	&& rm -rf /var/lib/apt/lists/*
 
-# Install AWS Roles Anywhere credential helper (optional but recommended)
+# Install AWS Roles Anywhere credential helper 
 RUN wget -q "https://rolesanywhere.amazonaws.com/releases/1.1.1/X86_64/Linux/aws_signing_helper" \
     -O /usr/local/bin/aws_signing_helper \
     && chmod +x /usr/local/bin/aws_signing_helper \

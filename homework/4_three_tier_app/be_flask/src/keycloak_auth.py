@@ -12,7 +12,6 @@ from typing import Tuple, Dict, Optional
 from functools import wraps
 from flask import request, abort, current_app, g
 import jwt
-from jwt import PyJWKClient
 import urllib3
 
 from .models import db, UserProfile

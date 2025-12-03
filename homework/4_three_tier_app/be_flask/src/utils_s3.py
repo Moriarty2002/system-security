@@ -4,7 +4,6 @@ Utility functions for S3-based file storage operations.
 This module provides file storage operations using AWS S3 with Roles Anywhere authentication.
 """
 
-import io
 import logging
 from typing import List, Dict, Any
 from datetime import datetime, timedelta, timezone

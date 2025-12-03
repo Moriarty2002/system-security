@@ -96,18 +96,14 @@ class RolesAnywhereCredentialProvider:
         self._write_credentials_to_files()
         
         try:
-            # Try using aws_signing_helper if available (AWS official tool)
+            # Use aws_signing_helper downloaded from docker image build (AWS official tool)
             # Download from: https://docs.aws.amazon.com/rolesanywhere/latest/userguide/credential-helper.html
             helper_path = '/usr/local/bin/aws_signing_helper'
             
-            if os.path.exists(helper_path):
-                return self._get_credentials_via_helper(helper_path)
-            else:
-                logger.info("AWS signing helper not found, using direct boto3 approach")
-                return self._get_credentials_via_boto3()
+            return self._get_credentials_via_helper(helper_path)
                 
         except Exception as e:
-            logger.error(f"Failed to obtain credentials: {e}")
+            logger.error(f"Failed to obtain credentials using aws_signing_helper: {e}")
             raise
     
     def _get_credentials_via_helper(self, helper_path: str) -> Dict[str, str]:
@@ -138,28 +134,6 @@ class RolesAnywhereCredentialProvider:
             'SessionToken': creds['SessionToken'],
             'Expiration': creds['Expiration']
         }
-    
-    def _get_credentials_via_boto3(self) -> Dict[str, str]:
-        """Get credentials using boto3 STS assume role with web identity.
-        
-        This is a simplified approach that uses standard AWS STS.
-        For production, consider installing aws_signing_helper.
-        
-        Returns:
-            Credential dictionary
-        """
-        # For now, we'll use a simpler approach with static credentials from Vault
-        # In production, you should use the AWS credential helper or implement
-        # the full Roles Anywhere signing process
-        
-        # This approach requires the aws_signing_helper or custom implementation
-        # For simplicity, we'll return credentials that can be set via environment
-        raise NotImplementedError(
-            "Direct boto3 Roles Anywhere authentication requires aws_signing_helper binary. "
-            "Please install it from: https://docs.aws.amazon.com/rolesanywhere/latest/userguide/credential-helper.html "
-            "or use standard AWS credentials via environment variables."
-        )
-
 
 class S3Client:
     """AWS S3 client wrapper with Roles Anywhere authentication for file storage operations."""
@@ -225,7 +199,7 @@ class S3Client:
             boto3 S3 client with temporary credentials
         """
         try:
-            # Get temporary credentials
+            # Get temporary credentials generated via Roles Anywhere
             creds = self.credential_provider.get_credentials()
             
             # Create S3 client with temporary credentials
@@ -245,7 +219,7 @@ class S3Client:
             raise
 
     def _ensure_bucket(self) -> None:
-        """Ensure the bucket exists and is accessible."""
+        """Ensure the AWS S3 bucket exists and is accessible."""
         try:
             self.client.head_bucket(Bucket=self.bucket_name)
             logger.debug(f"Bucket exists and is accessible: {self.bucket_name}")

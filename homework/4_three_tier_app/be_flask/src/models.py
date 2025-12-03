@@ -2,6 +2,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import BigInteger
 from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
+from flask import g
 import uuid
 
 db = SQLAlchemy()
@@ -26,14 +27,12 @@ class UserProfile(db.Model):
     @property
     def username(self):
         """Get username from Flask g context (set by authenticate_user from token)."""
-        from flask import g
         return getattr(g, 'username', None)
     
     # Role is NOT stored - always from Keycloak token (prevents sync issues)
     @property
     def role(self):
         """Get role from Flask g context (set by authenticate_user)."""
-        from flask import g
         return getattr(g, 'user_role', 'user')
 
     def __repr__(self) -> str:
@@ -47,24 +46,6 @@ class UserProfile(db.Model):
             'quota': self.quota,
             'role': self.role  # From token via Flask g
         }
-
-
-# Keep legacy User model for backward compatibility (not used)
-class User(db.Model):
-    """Legacy user table - kept for reference but not used.
-    
-    Authentication has been migrated to Keycloak.
-    Use UserProfile model for all user operations.
-    """
-    __tablename__ = 'users'
-
-    username = db.Column(db.String(128), primary_key=True)
-    role = db.Column(db.String(32), nullable=False, default='user')
-    quota = db.Column(BigInteger, nullable=False, default=0)
-    password_hash = db.Column(db.String(256), nullable=False)
-
-    def __repr__(self) -> str:
-        return f'<User {self.username} (LEGACY)>'
 
 
 class BinItem(db.Model):

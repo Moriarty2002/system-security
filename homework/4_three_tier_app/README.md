@@ -383,7 +383,7 @@ See [VAULT_INTEGRATION.md](VAULT_INTEGRATION.md) for production guidelines.
 │       ├── minio_client.py       # MinIO/S3 client
 │       ├── config.py             # Config with Vault
 │       ├── auth.py               # JWT auth with Vault
-│       ├── utils_minio.py        # MinIO-based utilities
+│       ├── utils_s3.py        # MinIO-based utilities
 │       └── blueprints/
 │           ├── files.py          # File operations (MinIO)
 │           └── admin.py          # Admin endpoints

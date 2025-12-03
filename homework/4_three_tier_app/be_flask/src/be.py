@@ -13,11 +13,10 @@ Security Features:
 """
 
 import os
-import re
 import logging
 from flask import Flask
 from flask_cors import CORS
-
+import re
 from .config import get_config
 from .models import db
 from .blueprints.auth import auth_bp
@@ -66,41 +65,38 @@ def create_app(config_object=None) -> Flask:
     try:
         # Ensure config.vault_client is created lazily
         if hasattr(config, 'vault_client') and config.vault_client.is_available():
-            try:
-                app.logger.info('Attempting to fetch CA chain from Vault to populate trust store')
-                app_secrets = config.vault_client.get_app_secrets() or {}
-                ca_chain = app_secrets.get('CA_chain') or app_secrets.get('ca_chain')
-                if ca_chain:
-                    ca_path = '/usr/local/share/ca-certificates/vault_pki_ca.crt'
-                    # Only write/install if not already present or different
-                    existing = None
-                    if os.path.exists(ca_path):
-                        with open(ca_path, 'r') as f:
-                            existing = f.read()
-                    if existing != ca_chain:
-                        with open(ca_path, 'w') as f:
-                            f.write(ca_chain)
-                        # update system CA store if available
-                        import shutil, subprocess
-                        if shutil.which('update-ca-certificates'):
-                            subprocess.run(['update-ca-certificates'], check=False)
-                            app.logger.info('Installed Vault PKI CA into system trust store')
-                            # Ensure Python requests uses the system CA bundle (not certifi's bundle)
-                            system_bundle = '/etc/ssl/certs/ca-certificates.crt'
-                            os.environ.setdefault('REQUESTS_CA_BUNDLE', system_bundle)
-                            os.environ.setdefault('SSL_CERT_FILE', system_bundle)
-                            app.logger.info(f'Set REQUESTS_CA_BUNDLE and SSL_CERT_FILE to {system_bundle}')
-                        else:
-                            app.logger.warning('update-ca-certificates not found; CA written but not installed')
+            app.logger.info('Attempting to fetch CA chain from Vault to populate trust store')
+            app_secrets = config.vault_client.get_app_secrets() or {}
+            ca_chain = app_secrets.get('CA_chain') or app_secrets.get('ca_chain')
+            if ca_chain:
+                ca_path = '/usr/local/share/ca-certificates/vault_pki_ca.crt'
+                # Only write/install if not already present or different
+                existing = None
+                if os.path.exists(ca_path):
+                    with open(ca_path, 'r') as f:
+                        existing = f.read()
+                if existing != ca_chain:
+                    with open(ca_path, 'w') as f:
+                        f.write(ca_chain)
+                    # update system CA store if available
+                    import shutil, subprocess
+                    if shutil.which('update-ca-certificates'):
+                        subprocess.run(['update-ca-certificates'], check=False)
+                        app.logger.info('Installed Vault PKI CA into system trust store')
+                        # Ensure Python requests uses the system CA bundle (not certifi's bundle)
+                        system_bundle = '/etc/ssl/certs/ca-certificates.crt'
+                        os.environ.setdefault('REQUESTS_CA_BUNDLE', system_bundle)
+                        os.environ.setdefault('SSL_CERT_FILE', system_bundle)
+                        app.logger.info(f'Set REQUESTS_CA_BUNDLE and SSL_CERT_FILE to {system_bundle}')
                     else:
-                        app.logger.info('Vault PKI CA already present in trust store')
+                        app.logger.warning('update-ca-certificates not found; CA written but not installed')
                 else:
-                    app.logger.debug('No CA_chain found in Vault app secrets; skipping CA install')
-            except Exception as e:
-                app.logger.warning(f'Failed to install CA chain from Vault: {e}')
-    except Exception:
-        # Any Vault issues here should not prevent the app from starting; they will be raised later
-        pass
+                    app.logger.info('Vault PKI CA already present in trust store')
+            else:
+                app.logger.debug('No CA_chain found in Vault app secrets; skipping CA install')
+    except Exception as e:
+        app.logger.error(f'Failed to loading configurations from Vault: {e}')
+        raise
 
     # Initialize S3 client
     try:
@@ -127,7 +123,6 @@ def create_app(config_object=None) -> Flask:
     if not db_uri:
         raise RuntimeError("SQLALCHEMY_DATABASE_URI not configured")
     # Mask password in log
-    import re
     masked_uri = re.sub(r'://([^:]+):([^@]+)@', r'://\1:****@', db_uri)
     app.logger.info(f"Database URI: {masked_uri}")
 
@@ -146,7 +141,6 @@ def create_app(config_object=None) -> Flask:
         try:
             # Create table metadata (does NOT create tables if they exist)
             # This ensures SQLAlchemy knows about existing tables created by init script
-            # In production: tables are created by DB migrations/init scripts, not Flask
             db.create_all()
             app.logger.info("Database schema synchronized")
         except Exception as e:
