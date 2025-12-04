@@ -13,6 +13,7 @@ from functools import wraps
 from flask import request, abort, current_app, g
 import jwt
 import urllib3
+from jwt.algorithms import RSAAlgorithm
 
 from .models import db, UserProfile
 
@@ -89,7 +90,6 @@ class KeycloakAuth:
             for key in self.jwks_data.get('keys', []):
                 if key.get('kid') == kid:
                     # Import the key
-                    from jwt.algorithms import RSAAlgorithm
                     return RSAAlgorithm.from_jwk(key)
             
             raise ValueError(f"Key with kid '{kid}' not found in JWKS")
@@ -501,33 +501,51 @@ def authenticate_user() -> Tuple[str, UserProfile]:
         abort(500, description='Authentication error')
 
 
-def require_role(required_role: str):
-    """Decorator to require a specific role.
+
+def is_admin() -> bool:
+    """Check if current user has admin privileges.
     
-    Args:
-        required_role: Required role ('user', 'moderator', 'admin')
+    Role is fetched from Flask g (set by authenticate_user from Keycloak token).
+        
+    Returns:
+        True if user is admin, False otherwise
     """
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            # Ensure user is authenticated
-            username, _ = authenticate_user()
-            
-            # Get role from Flask g (fresh from Keycloak token)
-            user_role = g.user_role
-            
-            # Check role hierarchy
-            role_hierarchy = {'user': 0, 'moderator': 1, 'admin': 2}
-            user_level = role_hierarchy.get(user_role, 0)
-            required_level = role_hierarchy.get(required_role, 0)
-            
-            if user_level < required_level:
-                logger.warning(f"User {username} (role={user_role}) attempted to access {required_role}-only resource")
-                abort(403, description=f'{required_role} role required')
-            
-            return f(*args, **kwargs)
-        return decorated_function
-    return decorator
+    # Get role from Flask g (fresh from Keycloak token)
+    return g.user_role == 'admin'
+
+
+def is_admin_moderator() -> bool:
+    """Check if current user has admin or moderator privileges.
+    
+    Role is fetched from Flask g (set by authenticate_user from Keycloak token).
+        
+    Returns:
+        True if user is admin or moderator, False otherwise
+    """
+    # Get role from Flask g (fresh from Keycloak token)
+    return g.user_role in ['admin', 'moderator']
+
+def is_moderator() -> bool:
+    """Check if current user has moderator privileges.
+    
+    Role is fetched from Flask g (set by authenticate_user from Keycloak token).
+        
+    Returns:
+        True if user is moderator, False otherwise
+    """
+    # Get role from Flask g (fresh from Keycloak token)
+    return g.user_role == 'moderator'
+
+def is_user() -> bool:
+    """Check if current user has user privileges.
+    
+    Role is fetched from Flask g (set by authenticate_user from Keycloak token).
+        
+    Returns:
+        True if user is user, False otherwise
+    """
+    # Get role from Flask g (fresh from Keycloak token)
+    return g.user_role == 'user'
 
 
 def require_admin() -> None:
@@ -539,6 +557,18 @@ def require_admin() -> None:
         403: User is not admin or moderator
     """
     # Get role from Flask g (fresh from Keycloak token)
-    user_role = g.user_role
-    if user_role not in ['admin', 'moderator']:
+    if not is_admin():
+        abort(403, description='Admin role required')
+        
+
+def require_admin_moderator() -> None:
+    """Check if user has admin or moderator privileges.
+    
+    Role is fetched from Flask g (set by authenticate_user from Keycloak token).
+        
+    Raises:
+        403: User is not admin or moderator
+    """
+    # Get role from Flask g (fresh from authenticate_user from Keycloak token)
+    if not is_admin_moderator():
         abort(403, description='Admin or moderator role required')

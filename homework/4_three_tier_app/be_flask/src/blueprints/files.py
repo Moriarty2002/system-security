@@ -5,7 +5,7 @@ from flask import Blueprint, jsonify, request, send_file, abort, current_app
 from werkzeug.utils import secure_filename
 from sqlalchemy import func
 
-from ..keycloak_auth import authenticate_user, get_admin_keycloak_auth
+from ..keycloak_auth import authenticate_user, get_admin_keycloak_auth, is_admin, is_moderator, is_user
 from ..models import db, UserProfile, BinItem
 from ..utils_s3 import (
     get_user_usage_bytes,
@@ -34,7 +34,7 @@ def upload_file():
 
         # Prevent admin and moderator users from uploading files
         user_role = getattr(user, 'role', '')
-        if user_role not in ['user']:
+        if is_admin() or is_moderator():
             logger.warning(f"{user_role.title()} user {username} attempted to upload file")
             return jsonify({'error': f'{user_role}s cannot upload files'}), 403
 
@@ -118,13 +118,13 @@ def list_files():
     s3_client = current_app.config['S3_CLIENT']
 
     # Prevent admin users from listing files
-    if getattr(user, 'role', '') == 'admin':
+    if is_admin():
         logger.warning(f"Admin user {username} attempted to list files")
         abort(403, description='admins cannot access file listings')
 
     # Allow moderators to view other users' file lists via ?user=<username>
     target = request.args.get('user') or username
-    if target != username and getattr(user, 'role', '') != 'moderator':
+    if target != username and not is_moderator():
         abort(403, description='insufficient role to view other users')
 
     subpath = request.args.get('path', '').strip()
@@ -141,17 +141,14 @@ def list_files():
         # For moderators viewing other users, need to get user by username via Keycloak
         try:
             kc = get_admin_keycloak_auth()
-            if kc:
-                # Search for user by username in Keycloak
-                kc_users = kc.admin_search_users(target)
-                if kc_users and len(kc_users) > 0:
-                    target_keycloak_id = kc_users[0].get('id')
-                    target_user = UserProfile.query.filter_by(keycloak_id=target_keycloak_id).first()
-                    quota = target_user.quota if target_user else 0
-                else:
-                    quota = 0
+            # Search for user by username in Keycloak
+            kc_users = kc.admin_search_users(target)
+            if kc_users and len(kc_users) > 0:
+                target_keycloak_id = kc_users[0].get('id')
+                target_user = UserProfile.query.filter_by(keycloak_id=target_keycloak_id).first()
+                quota = target_user.quota if target_user else 0
             else:
-                quota = 0
+                    quota = 0
         except Exception as e:
             logger.warning(f"Failed to get quota for user {target}: {e}")
             quota = 0
@@ -168,17 +165,17 @@ def list_files():
 @files_bp.route('/files/<filename>', methods=['GET'])
 def download_file(filename):
     """Download a file."""
-    username, user = authenticate_user()
+    username, _ = authenticate_user()
     s3_client = current_app.config['S3_CLIENT']
 
     # Prevent admin users from downloading files
-    if getattr(user, 'role', '') == 'admin':
+    if is_admin():
         logger.warning(f"Admin user {username} attempted to download file")
         abort(403, description='admins cannot download files')
 
     # Allow moderators to download other users' files via ?user=<username>
     target = request.args.get('user') or username
-    if target != username and getattr(user, 'role', '') != 'moderator':
+    if target != username and not is_moderator():
         abort(403, description='insufficient role to download other users files')
 
     # Get path from query parameter
@@ -211,13 +208,13 @@ def download_file(filename):
 @files_bp.route('/files/<filename>', methods=['DELETE'])
 def delete_file(filename):
     """Move a file or directory to bin."""
-    username, user = authenticate_user()
+    username, _ = authenticate_user()
     s3_client = current_app.config['S3_CLIENT']
 
-    # Prevent admin users from deleting files
-    if getattr(user, 'role', '') == 'admin':
-        logger.warning(f"Admin user {username} attempted to delete file")
-        abort(403, description='admins cannot delete files')
+    # Prevent non-users from deleting files
+    if not is_user():
+        logger.warning(f"non-user {username} attempted to delete file")
+        abort(403, description='only users can delete files')
 
     # Deletions only allowed by owner
     target = request.args.get('user') or username
@@ -277,14 +274,13 @@ def delete_file(filename):
 def create_directory():
     """Create a directory for the authenticated user."""
     try:
-        username, user = authenticate_user()
+        username, _ = authenticate_user()
         s3_client = current_app.config['S3_CLIENT']
 
-        # Prevent admin and moderator users from creating directories
-        user_role = getattr(user, 'role', '')
-        if user_role not in ['user']:
-            logger.warning(f"{user_role.title()} user {username} attempted to create directory")
-            return jsonify({'error': f'{user_role}s cannot create directories'}), 403
+        # Prevent non-users from creating directories
+        if not is_user():
+            logger.warning(f"non-user {username} attempted to create directory")
+            return jsonify({'error': 'only users can create directories'}), 403
 
         data = request.get_json()
         if not data or 'path' not in data:
@@ -325,12 +321,12 @@ def create_directory():
 @files_bp.route('/bin', methods=['GET'])
 def list_bin():
     """List items in user's bin."""
-    username, user = authenticate_user()
+    username, _ = authenticate_user()
 
-    # Prevent admin users from accessing bin
-    if getattr(user, 'role', '') == 'admin':
-        logger.warning(f"Admin user {username} attempted to access bin")
-        abort(403, description='admins cannot access bin')
+    # Prevent non-users from accessing bin
+    if not is_user():
+        logger.warning(f"non-user {username} attempted to access bin")
+        abort(403, description='only users can access bin')
 
     bin_items = get_user_bin_items(username)
     return jsonify({'bin_items': bin_items})
@@ -339,13 +335,13 @@ def list_bin():
 @files_bp.route('/bin/<int:item_id>/restore', methods=['POST'])
 def restore_from_bin_endpoint(item_id):
     """Restore an item from bin."""
-    username, user = authenticate_user()
+    username, _ = authenticate_user()
     s3_client = current_app.config['S3_CLIENT']
 
-    # Prevent admin users from restoring from bin
-    if getattr(user, 'role', '') == 'admin':
-        logger.warning(f"Admin user {username} attempted to restore from bin")
-        abort(403, description='admins cannot restore from bin')
+    # Prevent non-users from restoring from bin
+    if not is_user():
+        logger.warning(f"non-user {username} attempted to restore from bin")
+        abort(403, description='only users can restore from bin')
 
     try:
         success = restore_from_bin(item_id, username, s3_client)
@@ -362,13 +358,13 @@ def restore_from_bin_endpoint(item_id):
 @files_bp.route('/bin/<int:item_id>', methods=['DELETE'])
 def permanently_delete_from_bin_endpoint(item_id):
     """Permanently delete an item from bin."""
-    username, user = authenticate_user()
+    username, _ = authenticate_user()
     s3_client = current_app.config['S3_CLIENT']
 
-    # Prevent admin users from permanently deleting from bin
-    if getattr(user, 'role', '') == 'admin':
-        logger.warning(f"Admin user {username} attempted to permanently delete from bin")
-        abort(403, description='admins cannot permanently delete from bin')
+    # Prevent non-users from permanently deleting from bin
+    if not is_user():
+        logger.warning(f"non-user {username} attempted to permanently delete from bin")
+        abort(403, description='only users can permanently delete from bin')
 
     try:
         success = permanently_delete_from_bin(item_id, username, s3_client)
@@ -385,10 +381,10 @@ def permanently_delete_from_bin_endpoint(item_id):
 @files_bp.route('/bin/cleanup', methods=['POST'])
 def cleanup_bin():
     """Clean up expired bin items (admin only)."""
-    username, user = authenticate_user()
+    username, _ = authenticate_user()
     s3_client = current_app.config['S3_CLIENT']
 
-    if getattr(user, 'role', '') != 'admin':
+    if not is_admin():
         abort(403, description='only admins can cleanup bin')
 
     try:

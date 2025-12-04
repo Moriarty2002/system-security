@@ -1,8 +1,7 @@
 import logging
 from flask import Blueprint, jsonify, current_app, g
-import requests
 
-from ..keycloak_auth import authenticate_user, get_keycloak_auth
+from ..keycloak_auth import authenticate_user
 
 logger = logging.getLogger(__name__)
 auth_bp = Blueprint('auth', __name__)

@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request, current_app
 
-from ..keycloak_auth import authenticate_user, require_admin, get_admin_keycloak_auth
+from ..keycloak_auth import authenticate_user, require_admin, get_admin_keycloak_auth, require_admin_moderator
 from ..models import db, UserProfile
 from ..utils_s3 import get_user_usage_bytes
 
@@ -9,65 +9,51 @@ admin_bp = Blueprint('admin', __name__)
 
 @admin_bp.route('/users', methods=['GET'])
 def list_users():
-    """List all users with their details (admin only)."""
+    """List all users with their details (admin and moderators only)."""
     authenticate_user()
-    require_admin()
+    require_admin_moderator()
 
     users = UserProfile.query.all()
     results = []
     
     # Get Keycloak admin API client
     kc = None
-    try:
-        kc = get_admin_keycloak_auth()
-    except Exception:
-        kc = None
+    kc = get_admin_keycloak_auth()
 
     s3_client = current_app.config.get('S3_CLIENT')
 
     # Fetch user details from Keycloak
-    if kc:
-        keycloak_ids = [str(u.keycloak_id) for u in users]
-        users_data = kc.admin_get_users_with_roles(keycloak_ids)
+    keycloak_ids = [str(u.keycloak_id) for u in users]
+    users_data = kc.admin_get_users_with_roles(keycloak_ids)
+    
+    for u in users:
+        keycloak_id_str = str(u.keycloak_id)
+        user_info = users_data.get(keycloak_id_str)
         
-        for u in users:
-            keycloak_id_str = str(u.keycloak_id)
-            user_info = users_data.get(keycloak_id_str)
-            
-            if not user_info:
-                continue
-            
-            # Filter: only include users with 'user' realm role
-            if 'user' not in user_info.get('roles', []):
-                continue
-            
-            username = user_info.get('username', 'Unknown')
-            
-            # Calculate used quota
-            used_quota = 0
-            if s3_client and username != 'Unknown':
-                try:
-                    used_quota = get_user_usage_bytes(username, s3_client)
-                except Exception:
-                    used_quota = 0
+        if not user_info:
+            continue
+        
+        # Filter: only include users with 'user' realm role
+        if 'user' not in user_info.get('roles', []):
+            continue
+        
+        username = user_info.get('username', 'Unknown')
+        
+        # Calculate used quota
+        used_quota = 0
+        if s3_client and username != 'Unknown':
+            try:
+                used_quota = get_user_usage_bytes(username, s3_client)
+            except Exception:
+                used_quota = 0
 
-            results.append({
-                'keycloak_id': keycloak_id_str,
-                'role': 'Managed by Keycloak',
-                'quota': u.quota,
-                'used_quota': used_quota,
-                'username': username
-            })
-    else:
-        # Fallback: if Keycloak admin API is not available, return users without filtering
-        for u in users:
-            results.append({
-                'keycloak_id': str(u.keycloak_id),
-                'role': 'Managed by Keycloak',
-                'quota': u.quota,
-                'used_quota': 0,
-                'username': 'See Keycloak'
-            })
+        results.append({
+            'keycloak_id': keycloak_id_str,
+            'role': 'Managed by Keycloak',
+            'quota': u.quota,
+            'used_quota': used_quota,
+            'username': username
+        })
 
     return jsonify({'users': results})
 
