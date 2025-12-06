@@ -20,13 +20,18 @@ listener "tcp" {
   tls_disable = 0
   tls_cert_file = "/vault/certs/vault-cert.pem"
   tls_key_file = "/vault/certs/vault-key.pem"
+  tls_min_version = "tls13"
+
+ "default" = {
+    "Strict-Transport-Security" = ["max-age=31536000","includeSubDomains"], # enforce HTTPS
+  }
 }
 
 # API address
 api_addr = "https://0.0.0.0:8200"
 
 # Disable mlock for containerized environments
-disable_mlock = true
+disable_mlock = false
 
 # Log level
 log_level = "Info"

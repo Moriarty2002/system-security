@@ -13,18 +13,27 @@
 
 services:
   vault:
-    image: hashicorp/vault:1.15
+    image: hashicorp/vault:1.21
     container_name: shared_vault_server
     restart: unless-stopped
     ports:
-      - "8200:8200"
+      - "127.0.0.1:8200:8200"
     environment:
       VAULT_ADDR: 'https://0.0.0.0:8200'
-      VAULT_API_ADDR: 'https://0.0.0.0:8200'
-      VAULT_ADDRESS: 'https://0.0.0.0:8200'
       VAULT_SKIP_VERIFY: '1'  # Skip TLS verification for self-signed certs
+    ulimits:
+      core: 0
+      nofile:
+        soft: 65536
+        hard: 65536
+      nproc: 65535
+      memlock:
+        soft: -1
+        hard: -1
     cap_add:
       - IPC_LOCK
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - vault_data:/vault/file
       - ./config:/vault/config:ro
