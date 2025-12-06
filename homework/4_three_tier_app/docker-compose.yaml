@@ -92,8 +92,6 @@ services:
       db:
         # Wait for the DB to be fully ready, not just started
         condition: service_healthy
-      minio:
-        condition: service_healthy
 
   # Layer 3: Database
   db:
@@ -131,31 +129,8 @@ services:
       timeout: 5s
       retries: 5
 
-  # Object Storage (MinIO - S3-compatible)
-  minio:
-    image: minio/minio:latest
-    container_name: minio_storage
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
-    volumes:
-      - minio_data:/data
-    ports:
-      - "9000:9000"  # API endpoint
-      - "9001:9001"  # Web console
-    restart: unless-stopped
-    networks:
-      - app_net
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
 volumes:
   pg_data:
-  minio_data:
 
 networks:
   app_net:
