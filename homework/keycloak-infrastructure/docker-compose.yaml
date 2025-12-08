@@ -34,35 +34,18 @@ services:
       dockerfile: Dockerfile
     image: keycloak-vault-integrated:23.0
     container_name: shared-keycloak-server
-    command: start --http-max-queued-requests 200
+    command: start --optimized
     environment:
       # Vault configuration
       VAULT_ADDR: https://shared_vault_server:8200
       VAULT_ROLE_ID: ${VAULT_ROLE_ID:?VAULT_ROLE_ID is required}
       VAULT_SECRET_ID: ${VAULT_SECRET_ID:?VAULT_SECRET_ID is required}
       
-      # Database configuration (values will be fetched from Vault by entrypoint)
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://keycloak_db:5432/keycloak
-      
-      # Hostname configuration
-      KC_HOSTNAME: localhost
-      KC_HOSTNAME_STRICT: true
-      KC_HOSTNAME_STRICT_BACKCHANNEL: true
-      
-      # HTTPS configuration
-      KC_HTTP_ENABLED: false
-      KC_HTTPS_PORT: 8443
-      
-      # Health and metrics
-      KC_HEALTH_ENABLED: true
-      KC_METRICS_ENABLED: true
+      # check keycloak.conf for other settings
       
       VAULT_SKIP_VERIFY: 1
-      
-      # Logging
-      KC_LOG_LEVEL: INFO
-      KC_LOG_CONSOLE_OUTPUT: default
+    volumes:
+      - ./config:/opt/keycloak/conf:ro
     ports:
       - "8443:8443"
     networks:

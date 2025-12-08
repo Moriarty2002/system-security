@@ -84,12 +84,22 @@ if [ -n "$EXISTING_CERT" ] && echo "$EXISTING_CERT" | jq -e '.data.data.server_c
     # Enable HTTPS with certificate paths
     export KC_HTTPS_CERTIFICATE_FILE="$CERTS_DIR/keycloak.crt"
     export KC_HTTPS_CERTIFICATE_KEY_FILE="$CERTS_DIR/keycloak.key"
-    export VAULT_CACERT=/opt/keycloak/certs/ca.crt # Disable VAULT_SKIP_VERIFY for TLS verification
+    
+    # Use CA cert for Vault TLS verification
+    if [ -f "$CERTS_DIR/ca.crt" ]; then
+        export VAULT_CACERT="$CERTS_DIR/ca.crt"
+        unset VAULT_SKIP_VERIFY
+        echo "  ✓ Vault TLS verification enabled with CA cert"
+    else
+        export VAULT_SKIP_VERIFY=1
+        echo "  ⚠ Vault TLS verification disabled (CA cert not found)"
+    fi
 
     echo "  ✓ HTTPS enabled"
 else
-    echo "  Certificate not found - HTTPS disabled"
+    echo "  ⚠ Certificate not found - HTTPS disabled"
     echo "  Add to secret/keycloak/certificates: server_cert, server_key, ca_chain"
+    export VAULT_SKIP_VERIFY=1
 fi
 
 echo "========================================="

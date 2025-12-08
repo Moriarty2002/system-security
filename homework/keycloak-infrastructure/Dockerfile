@@ -17,7 +17,14 @@ USER root
 COPY --from=downloader /jq /usr/local/bin/jq
 COPY --from=downloader /vault /usr/local/bin/vault
 
+# Copy configuration file for build optimization
+COPY config/keycloak.conf /opt/keycloak/conf/keycloak.conf
+
 USER keycloak
+
+# Build optimized Keycloak with database and other settings
+# This creates an optimized server image based on the configuration
+RUN /opt/keycloak/bin/kc.sh build
 
 # Copy entrypoint script
 COPY scripts/keycloak-entrypoint.sh /scripts/keycloak-entrypoint.sh
