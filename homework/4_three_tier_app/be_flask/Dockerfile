@@ -11,10 +11,9 @@ RUN apt-get update \
 	&& rm -rf /var/lib/apt/lists/*
 
 # Install AWS Roles Anywhere credential helper 
-RUN wget -q "https://rolesanywhere.amazonaws.com/releases/1.1.1/X86_64/Linux/aws_signing_helper" \
-    -O /usr/local/bin/aws_signing_helper \
-    && chmod +x /usr/local/bin/aws_signing_helper \
-    || echo "Warning: Could not install aws_signing_helper, will use fallback credentials"
+ADD https://rolesanywhere.amazonaws.com/releases/1.7.2/X86_64/Linux/Amzn2023/aws_signing_helper /usr/local/bin/aws_signing_helper
+RUN chmod +x /usr/local/bin/aws_signing_helper || \
+	echo "Warning: Could not make aws_signing_helper executable, will use fallback credentials"
 
 # Copy the dependencies file
 COPY requirements.txt .
