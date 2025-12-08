@@ -22,7 +22,6 @@ fi
 
 # Export Vault address and skip verify for self-signed cert
 export VAULT_ADDR
-export VAULT_SKIP_VERIFY=1
 
 echo "🔐 Authenticating with Vault..."
 
@@ -83,13 +82,13 @@ if [ -n "$EXISTING_CERT" ] && echo "$EXISTING_CERT" | jq -e '.data.data.server_c
     chmod 644 "$CERTS_DIR/ca.crt"
     
     # Enable HTTPS with certificate paths
-    export KC_HTTPS_ENABLED=true
     export KC_HTTPS_CERTIFICATE_FILE="$CERTS_DIR/keycloak.crt"
     export KC_HTTPS_CERTIFICATE_KEY_FILE="$CERTS_DIR/keycloak.key"
-    
+    export VAULT_CACERT=/opt/keycloak/certs/ca.crt # Disable VAULT_SKIP_VERIFY for TLS verification
+
     echo "  ✓ HTTPS enabled"
 else
-    echo "  ℹ Certificate not found - HTTPS disabled"
+    echo "  Certificate not found - HTTPS disabled"
     echo "  Add to secret/keycloak/certificates: server_cert, server_key, ca_chain"
 fi
 
