@@ -209,7 +209,8 @@ class S3Client:
                 aws_access_key_id=creds['AccessKeyId'],
                 aws_secret_access_key=creds['SecretAccessKey'],
                 aws_session_token=creds['SessionToken'],
-                config=Config(signature_version='s3v4')
+                config=Config(signature_version='s3v4'),
+                verify=True
             )
             
             logger.info("Successfully obtained temporary credentials via Roles Anywhere")
