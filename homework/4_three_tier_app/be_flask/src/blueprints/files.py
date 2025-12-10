@@ -168,7 +168,7 @@ def list_files():
 @files_bp.route('/files/<filename>', methods=['GET'])
 def download_file(filename):
     """Download a file."""
-    username, _ = authenticate_user()
+    username, user = authenticate_user()
     s3_client = current_app.config['S3_CLIENT']
 
     # Prevent admin users from downloading files
@@ -181,7 +181,7 @@ def download_file(filename):
     if target != username and not is_moderator():
         abort(403, description='insufficient role to download other users files')
     elif target != username:
-        logger.info(f"[PRIVILEGED] Moderator '{username}' (keycloak_id={g.keycloak_id}) downloaded file for user '{target}': {filename}")
+        logger.info(f"[PRIVILEGED] Moderator '{username}' (keycloak_id={user.keycloak_id}) downloaded file for user '{target}': {filename}")
 
     # Get path from query parameter
     subpath = request.args.get('path', '').strip()
