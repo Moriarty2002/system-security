@@ -115,7 +115,7 @@
   
   <script src="js/common.js"></script>
   <script>
-    const { headers, whoami, removeToken, downloadBlobResponse, createThemeToggle, formatBytes, createUnitSelector } = appCommon;
+    const { headers, whoami, removeToken, downloadBlobResponse, createThemeToggle, formatBytes, createUnitSelector, logout } = appCommon;
 
     // Add theme toggle
     document.getElementById('themeToggleContainer').appendChild(createThemeToggle());
@@ -635,8 +635,9 @@
     });
 
     document.getElementById('logout').addEventListener('click', () => {
-      removeToken();
+      logout();
       location.href = 'index.html';
+      alert('You have been logged out from MES Local Cloud.');
     });
 
     document.getElementById('backBtn').addEventListener('click', () => {
