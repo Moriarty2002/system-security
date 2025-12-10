@@ -127,7 +127,16 @@ def create_app(config_object=None) -> Flask:
     app.logger.info(f"Database URI: {masked_uri}")
 
     # Initialize extensions
-    CORS(app)
+    CORS(app, resources={
+    r"/api/*": {
+        "origins": ["https://localhost"],
+        "methods": ["GET", "POST", "PUT", "DELETE"],
+        "allow_headers": ["Authorization", "Content-Type"],
+        "expose_headers": ["Content-Range", "X-Content-Range"],
+        "supports_credentials": True,
+        "max_age": 3600
+    }
+})
     db.init_app(app)
 
     # Register blueprints
