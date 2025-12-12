@@ -46,6 +46,7 @@ services:
       VAULT_SKIP_VERIFY: 1
     volumes:
       - ./config:/opt/keycloak/conf:ro
+      - ./data/blacklist.txt:/opt/keycloak/data/password-blacklist.txt:ro
     ports:
       - "8443:8443"
     networks:
