@@ -5,10 +5,23 @@
     let keycloakConfig = null;
     let keycloak = null;
 
-    // Token management
-    function getToken(){ return sessionStorage.getItem('access_token') }
-    function setToken(t){ if(t) sessionStorage.setItem('access_token', t) }
-    function removeToken(){ sessionStorage.removeItem('access_token') }
+    // Token management - NIST 800-53 SC-23 compliant
+    // Tokens are managed by Keycloak adapter in memory only (not sessionStorage)
+    // This prevents XSS-based session hijacking attacks
+    function getToken(){ 
+        return keycloak ? keycloak.token : null;
+    }
+    
+    // No-op functions for backwards compatibility - Keycloak manages tokens internally
+    function setToken(t){ 
+        // Deprecated: Keycloak adapter manages tokens internally
+        // Tokens are kept in memory only for security
+    }
+    
+    function removeToken(){ 
+        // Deprecated: Use logout() instead
+        // Keycloak adapter handles token cleanup
+    }
 
     function headers(includeJson){
         const t = getToken();
@@ -62,13 +75,13 @@
             });
 
             if (authenticated) {
-                setToken(keycloak.token);
+                // Token is managed by Keycloak adapter internally
                 
-                // Setup token refresh
+                // Setup token refresh - Keycloak automatically updates internal token
                 keycloak.onTokenExpired = () => {
                     keycloak.updateToken(30).then(refreshed => {
                         if (refreshed) {
-                            setToken(keycloak.token);
+                            console.log('Token refreshed successfully');
                         }
                     }).catch(() => {
                         console.error('Failed to refresh token');
@@ -96,9 +109,9 @@
 
     // Logout via Keycloak
     async function logout() {
-        removeToken();
         const kc = await initKeycloak();
         if (kc && kc.authenticated) {
+            // Keycloak handles token cleanup and session termination
             kc.logout();
         } else {
             // Fallback if Keycloak not available
