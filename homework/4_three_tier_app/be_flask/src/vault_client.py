@@ -38,6 +38,10 @@ class VaultClient:
         self.cache_ttl = 300  # Cache for 5 minutes
         self.lock = Lock()
         
+        # SC-10: Network connection timeout for Vault API calls
+        self.request_timeout = 10  # 10 second timeout for API requests
+
+        
         self._enabled = self._check_vault_enabled()
         
         if self._enabled:
@@ -58,7 +62,7 @@ class VaultClient:
         
         try:
             # Quick health check
-            client = hvac.Client(url=self.vault_addr, verify=self.verify_tls)
+            client = hvac.Client(url=self.vault_addr, verify=self.verify_tls, timeout=self.request_timeout)
             health = client.sys.read_health_status(method='GET')
             if health:
                 logger.info(f"Vault server is reachable at {self.vault_addr}")
@@ -71,7 +75,7 @@ class VaultClient:
     def _authenticate(self) -> None:
         """Authenticate with Vault using AppRole and store the token."""
         try:
-            self.client = hvac.Client(url=self.vault_addr, verify=self.verify_tls)
+            self.client = hvac.Client(url=self.vault_addr, verify=self.verify_tls, timeout=self.request_timeout)
             
             # Authenticate using AppRole
             auth_response = self.client.auth.approle.login(
