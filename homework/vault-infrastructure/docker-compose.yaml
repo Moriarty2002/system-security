@@ -18,9 +18,15 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:8200:8200"
+    # NIST 800-53 SC-21: Use DNSSEC-validating DNS resolvers
+    dns:
+      - 1.1.1.1        # Cloudflare (DNSSEC-validating)
+      - 9.9.9.9        # Quad9 (DNSSEC-validating)
+      - 8.8.8.8        # Google DNS (DNSSEC-validating)
     environment:
       VAULT_ADDR: 'https://0.0.0.0:8200'
-      VAULT_SKIP_VERIFY: '1'  # Skip TLS verification for self-signed certs
+      # VAULT_SKIP_VERIFY removed for NIST 800-53 SC-23 compliance
+      # Vault uses self-signed certs which are trusted via CA installation
     ulimits:
       core: 0
       nofile:
@@ -30,10 +36,17 @@ services:
       memlock:
         soft: -1
         hard: -1
+    cap_drop:
+      - ALL
     cap_add:
       - IPC_LOCK
+      - SETGID
+      - SETUID
+      - CHOWN
     security_opt:
       - no-new-privileges:true
+    ipc: private
+    pid: host
     volumes:
       - vault_data:/vault/file
       - ./config:/vault/config:ro
@@ -53,6 +66,13 @@ services:
 volumes:
   vault_data:
     driver: local
+    driver_opts:
+      type: none
+      # SC-28 Compliance: Vault encrypts internally (AES-256-GCM) but OS-level encryption adds defense-in-depth
+      # Setup: Create encrypted volume with BitLocker (Windows) or LUKS (Linux)
+      # Set ENCRYPTED_VOLUME_PATH env var to encrypted directory path
+      device: ${ENCRYPTED_VOLUME_PATH:-./vault_data_unencrypted}
+      o: bind
 
 networks:
   shared_vault_net:

@@ -48,6 +48,10 @@ services:
       - NET_BIND_SERVICE
       - SETGID
       - SETUID
+    security_opt:
+      - no-new-privileges:true
+    ipc: private
+    pid: host
     restart: unless-stopped
     networks:
       - app_net
@@ -60,12 +64,18 @@ services:
   backend:
     build: ./be_flask
     container_name: flask_be
+    # NIST 800-53 SC-21: Use DNSSEC-validating DNS resolvers
+    dns:
+      - 1.1.1.1        # Cloudflare (DNSSEC-validating)
+      - 9.9.9.9        # Quad9 (DNSSEC-validating)
+      - 8.8.8.8        # Google DNS (DNSSEC-validating)
     env_file:
       - .env
     environment:
       # Vault Configuration - Uses shared Vault infrastructure
       VAULT_ADDR: ${VAULT_ADDR:-https://shared_vault_server:8200}
-      VAULT_SKIP_VERIFY: "true"
+      # VAULT_SKIP_VERIFY removed for NIST 800-53 SC-23 compliance
+      # CA trust established via Vault PKI CA installation in be.py
       VAULT_ROLE_ID: ${VAULT_ROLE_ID:?VAULT_ROLE_ID is required}
       VAULT_SECRET_ID: ${VAULT_SECRET_ID:?VAULT_SECRET_ID is required}
       VAULT_AUTH_PATH: approle
@@ -78,6 +88,17 @@ services:
       # Application Configuration
       FLASK_ENV: ${FLASK_ENV:?FLASK_ENV is required (production or development)}
       PYTHONUNBUFFERED: 1
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    ipc: private
+    pid: host
     restart: unless-stopped # Added for robustness
     networks:
       - app_net # Connect to the custom network
@@ -97,6 +118,11 @@ services:
   db:
     image: postgres:14-alpine
     container_name: postgres_db
+    # NIST 800-53 SC-21: Use DNSSEC-validating DNS resolvers
+    dns:
+      - 1.1.1.1        # Cloudflare (DNSSEC-validating)
+      - 9.9.9.9        # Quad9 (DNSSEC-validating)
+      - 8.8.8.8        # Google DNS (DNSSEC-validating)
     environment:
       # Admin credentials for database initialization
       POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
@@ -116,6 +142,17 @@ services:
         source: ./be_flask/db_init
         target: /docker-entrypoint-initdb.d
         read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    security_opt:
+      - no-new-privileges:true
+    ipc: private
+    pid: host
     # Security: No ports exposed - only accessible via internal network
     # Uncomment if you need direct database access for debugging:
     # ports:
@@ -131,6 +168,11 @@ services:
 
 volumes:
   pg_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${ENCRYPTED_VOLUME_PATH:-./pg_data_unencrypted}
+      o: bind
 
 networks:
   app_net:

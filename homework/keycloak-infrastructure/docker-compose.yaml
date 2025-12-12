@@ -6,6 +6,11 @@ services:
   keycloak_db:
     image: postgres:14-alpine
     container_name: shared_keycloak_db
+    # NIST 800-53 SC-21: Use DNSSEC-validating DNS resolvers
+    dns:
+      - 1.1.1.1        # Cloudflare (DNSSEC-validating)
+      - 9.9.9.9        # Quad9 (DNSSEC-validating)
+      - 8.8.8.8        # Google DNS (DNSSEC-validating)
     environment:
       POSTGRES_DB: keycloak
       POSTGRES_USER: keycloak
@@ -13,6 +18,17 @@ services:
       POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?KEYCLOAK_DB_PASSWORD is required}
     volumes:
       - keycloak_db_data:/var/lib/postgresql/data
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    security_opt:
+      - no-new-privileges:true
+    ipc: private
+    pid: host
     networks:
       - keycloak_net
     restart: unless-stopped
@@ -35,6 +51,11 @@ services:
     image: keycloak-vault-integrated:23.0
     container_name: shared-keycloak-server
     command: start --optimized
+    # NIST 800-53 SC-21: Use DNSSEC-validating DNS resolvers
+    dns:
+      - 1.1.1.1        # Cloudflare (DNSSEC-validating)
+      - 9.9.9.9        # Quad9 (DNSSEC-validating)
+      - 8.8.8.8        # Google DNS (DNSSEC-validating)
     environment:
       # Vault configuration
       VAULT_ADDR: https://shared_vault_server:8200
@@ -42,10 +63,20 @@ services:
       VAULT_SECRET_ID: ${VAULT_SECRET_ID:?VAULT_SECRET_ID is required}
       
       # check keycloak.conf for other settings
-      
-      VAULT_SKIP_VERIFY: 1
+      # VAULT_SKIP_VERIFY removed for NIST 800-53 SC-23 compliance
     volumes:
       - ./config:/opt/keycloak/conf:ro
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    ipc: private
+    pid: host
     ports:
       - "8443:8443"
     networks:
@@ -80,4 +111,12 @@ networks:
 volumes:
   keycloak_db_data:
     name: shared_keycloak_db_data
+    driver: local
+    driver_opts:
+      type: none
+      # SC-28 Compliance: Mount encrypted filesystem here
+      # Setup: Create encrypted volume with BitLocker (Windows) or LUKS (Linux)
+      # Set ENCRYPTED_VOLUME_PATH env var to encrypted directory path
+      device: ${ENCRYPTED_VOLUME_PATH:-./keycloak_db_unencrypted}
+      o: bind
 
