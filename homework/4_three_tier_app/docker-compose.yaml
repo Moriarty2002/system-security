@@ -34,6 +34,9 @@ services:
           size: 10M
           mode: 0755
         # tmpfs will be owned by the USER running the container (apache:apache with UID 1000)
+    tmpfs:
+      - /tmp:mode=1777,size=50M
+      - /run/httpd:mode=0755,size=5M,uid=1000,gid=1000
       # web files
       - type: bind
         source: ./apache/app
@@ -70,6 +73,7 @@ services:
         soft: 512
         hard: 1024
     pids_limit: 100
+    read_only: true
     ipc: private
     pid: host
     restart: on-failure:5
@@ -135,9 +139,13 @@ services:
         soft: 1024
         hard: 2048
     pids_limit: 200
+    read_only: true
     ipc: private
     pid: host
     restart: on-failure:5
+    tmpfs:
+      - /tmp:mode=1777,size=100M
+      - /home/flaskuser/.cache:mode=0755,size=50M,uid=1000,gid=1000
     networks:
       - app_net # Connect to the custom network
       - shared_vault_net # Connect to Vault network
