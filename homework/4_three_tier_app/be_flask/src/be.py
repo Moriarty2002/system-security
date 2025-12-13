@@ -17,6 +17,8 @@ import logging
 from flask import Flask
 from flask_cors import CORS
 import re
+from flask import request, jsonify
+from datetime import datetime
 from .config import get_config
 from .models import db
 from .blueprints.auth import auth_bp
@@ -127,13 +129,44 @@ def create_app(config_object=None) -> Flask:
     app.logger.info(f"Database URI: {masked_uri}")
 
     # Initialize extensions
-    CORS(app)
+    CORS(app, resources={
+    r"/api/*": {
+        "origins": ["https://localhost"],
+        "methods": ["GET", "POST", "PUT", "DELETE"],
+        "allow_headers": ["Authorization", "Content-Type"],
+        "expose_headers": ["Content-Range", "X-Content-Range"],
+        "supports_credentials": True,
+        "max_age": 3600
+    }
+})
     db.init_app(app)
 
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(files_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
+    
+    # AC-8 System Use Notification endpoint
+    @app.route('/api/banner/acknowledge', methods=['POST'])
+    def acknowledge_banner():
+        """Log user acknowledgment of system use banner (AC-8 compliance)."""
+        
+        data = request.get_json() or {}
+        timestamp = data.get('timestamp', datetime.utcnow().isoformat())
+        user_agent = data.get('userAgent', request.headers.get('User-Agent', 'unknown'))
+        ip_address = request.remote_addr
+        
+        # Log the acknowledgment
+        app.logger.info(
+            f"[AC-8][BANNER_ACKNOWLEDGED] IP: {ip_address}, "
+            f"User-Agent: {user_agent}, Timestamp: {timestamp}"
+        )
+        
+        return jsonify({
+            'status': 'acknowledged',
+            'timestamp': timestamp,
+            'logged': True
+        })
 
     # Initialize database
     with app.app_context():

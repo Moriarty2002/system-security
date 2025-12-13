@@ -147,6 +147,16 @@ class Config:
         return val
 
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
+    
+    # SC-10: Network Disconnect - Database connection pool settings
+    # Terminate idle database connections to comply with NIST 800-53 SC-10
+    SQLALCHEMY_ENGINE_OPTIONS: dict = {
+        'pool_pre_ping': True,                   # Test connections before checkout
+        'pool_recycle': 3600,                    # Recycle after 1 hour
+        'pool_size': 10,                         # Base pool size
+        'max_overflow': 5,                       # Max connections beyond pool_size
+        'pool_timeout': 30,                      # Timeout waiting for connection
+    }
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:

@@ -1,18 +1,21 @@
 from flask import Blueprint, jsonify, request, current_app
 
+import logging
 from ..keycloak_auth import authenticate_user, require_admin, get_admin_keycloak_auth, require_admin_moderator
 from ..models import db, UserProfile
 from ..utils_s3 import get_user_usage_bytes
 
+logger = logging.getLogger(__name__)
 admin_bp = Blueprint('admin', __name__)
 
 
 @admin_bp.route('/users', methods=['GET'])
 def list_users():
     """List all users with their details (admin and moderators only)."""
-    authenticate_user()
+    _, user = authenticate_user()
     require_admin_moderator()
-
+    
+    logger.info(f"[PRIVILEGED] Admin/Moderator '{user.username}' (keycloak_id={user.keycloak_id}) accessed user list")
     users = UserProfile.query.all()
     results = []
     

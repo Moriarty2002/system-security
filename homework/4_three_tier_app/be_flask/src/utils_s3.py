@@ -132,7 +132,7 @@ def restore_from_bin(
         success = s3_client.move_file(username, bin_item.bin_path, bin_item.original_path)
     
     if not success:
-        logger.error(f"Failed to restore {bin_item.bin_path} to {bin_item.original_path}")
+        logger.error(f"User '{username}' failed to restore {bin_item.bin_path} to {bin_item.original_path}")
         return False
     
     # Remove from database
@@ -169,7 +169,7 @@ def permanently_delete_from_bin(
         success = s3_client.delete_file(username, bin_item.bin_path)
     
     if not success:
-        logger.error(f"Failed to delete {bin_item.bin_path} from S3")
+        logger.error(f"User '{username}' failed to permanently delete {bin_item.bin_path} from S3")
         return False
     
     # Remove from database

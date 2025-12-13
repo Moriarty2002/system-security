@@ -1,7 +1,7 @@
 import os
 import io
 import logging
-from flask import Blueprint, jsonify, request, send_file, abort, current_app
+from flask import Blueprint, jsonify, request, send_file, abort, current_app, g
 from werkzeug.utils import secure_filename
 from sqlalchemy import func
 
@@ -28,6 +28,7 @@ ERROR_INVALID_PATH = 'invalid path'
 @files_bp.route('/upload', methods=['POST'])
 def upload_file():
     """Upload a file for the authenticated user."""
+    username = 'unknown'
     try:
         username, user = authenticate_user()
         s3_client = current_app.config['S3_CLIENT']
@@ -107,7 +108,7 @@ def upload_file():
         logger.info(f"User {username} successfully uploaded file {filename} ({file_size} bytes)")
         return jsonify({'status': 'ok', 'filename': filename, 'size': file_size})
     except Exception as e:
-        logger.error(f"Unexpected error in upload_file: {str(e)}")
+        logger.error(f"Unexpected error in upload_file for user '{username}': {str(e)}")
         return jsonify({'error': 'internal server error'}), 500
 
 
@@ -126,6 +127,8 @@ def list_files():
     target = request.args.get('user') or username
     if target != username and not is_moderator():
         abort(403, description='insufficient role to view other users')
+    elif target != username:
+        logger.info(f"[PRIVILEGED] Moderator '{username}' (keycloak_id={user.keycloak_id}) accessed file listing for user '{target}'")
 
     subpath = request.args.get('path', '').strip()
     if subpath.startswith('/') or '..' in subpath:
@@ -165,7 +168,7 @@ def list_files():
 @files_bp.route('/files/<filename>', methods=['GET'])
 def download_file(filename):
     """Download a file."""
-    username, _ = authenticate_user()
+    username, user = authenticate_user()
     s3_client = current_app.config['S3_CLIENT']
 
     # Prevent admin users from downloading files
@@ -177,6 +180,8 @@ def download_file(filename):
     target = request.args.get('user') or username
     if target != username and not is_moderator():
         abort(403, description='insufficient role to download other users files')
+    elif target != username:
+        logger.info(f"[PRIVILEGED] Moderator '{username}' (keycloak_id={user.keycloak_id}) downloaded file for user '{target}': {filename}")
 
     # Get path from query parameter
     subpath = request.args.get('path', '').strip()
@@ -273,6 +278,7 @@ def delete_file(filename):
 @files_bp.route('/mkdir', methods=['POST'])
 def create_directory():
     """Create a directory for the authenticated user."""
+    username = 'unknown'
     try:
         username, _ = authenticate_user()
         s3_client = current_app.config['S3_CLIENT']
@@ -312,9 +318,9 @@ def create_directory():
             return jsonify({'error': 'failed to create directory'}), 500
 
         logger.info(f"User {username} created directory {dirname}")
-        return jsonify({'status': 'ok', 'path': dirname})
+        return jsonify({'status': 'ok', 'directory': dirname})
     except Exception as e:
-        logger.error(f"Unexpected error in create_directory: {str(e)}")
+        logger.error(f"Unexpected error in create_directory for user '{username}': {str(e)}")
         return jsonify({'error': 'internal server error'}), 500
 
 
