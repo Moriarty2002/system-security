@@ -74,7 +74,7 @@ services:
     environment:
       # Vault Configuration - Uses shared Vault infrastructure
       VAULT_ADDR: ${VAULT_ADDR:-https://shared_vault_server:8200}
-      VAULT_SKIP_VERIFY: 1
+      VAULT_SKIP_VERIFY: "true"
       # CA trust established via Vault PKI CA installation in be.py
       VAULT_ROLE_ID: ${VAULT_ROLE_ID:?VAULT_ROLE_ID is required}
       VAULT_SECRET_ID: ${VAULT_SECRET_ID:?VAULT_SECRET_ID is required}
