@@ -7,7 +7,7 @@
   <!-- NIST 800-53 SC-18: Subresource Integrity for external mobile code -->
   <link rel="stylesheet" 
         href="https://unpkg.com/@picocss/pico@2.0.6/css/pico.min.css"
-        integrity="sha384-+GeIG8KM2IHBaf9XYcoh89b9AJMPJLmhBg+pSI3XKKOvCVvqXJnMwMU8qFRQzFnS"
+        integrity="sha384-7P0NVe9LPDbUCAF+fH2R8Egwz1uqNH83Ns/bfJY0fN2XCDBMUI2S9gGzIOIRBKsA"
         crossorigin="anonymous">
   <link rel="stylesheet" href="css/theme.css">
 </head>
@@ -56,9 +56,43 @@
     </section>
   </main>
 
+  <!-- Load Keycloak JS adapter -->
+  <script id="keycloak-config-loader">
+    // Dynamically load Keycloak JS adapter after getting config
+    (async function() {
+      try {
+        const response = await fetch('/api/auth/config');
+        const config = await response.json();
+        const script = document.createElement('script');
+        script.src = config.server_url + '/js/keycloak.js';
+        script.onload = function() {
+          console.log('Keycloak JS adapter loaded');
+          initApp();
+        };
+        script.onerror = function() {
+          console.error('Failed to load Keycloak JS adapter');
+          alert('Failed to load authentication service. Please refresh the page.');
+        };
+        document.head.appendChild(script);
+      } catch(e) {
+        console.error('Failed to load Keycloak config:', e);
+        alert('Failed to initialize authentication. Please refresh the page.');
+      }
+    })();
+  </script>
+
   <script src="js/common.js"></script>
   <script>
-    const { headers, whoami, removeToken, createThemeToggle, formatBytes, parseBytes, createUnitSelector } = appCommon;
+    async function initApp() {
+      const { headers, whoami, logout, createThemeToggle, formatBytes, parseBytes, createUnitSelector, initKeycloak } = appCommon;
+
+      // Initialize Keycloak first
+      const kc = await initKeycloak();
+      if (!kc || !kc.authenticated) {
+        alert('You must be logged in to access this page.');
+        location.href = '/index.html';
+        return;
+      }
 
     // Add theme toggle
     document.getElementById('themeToggleContainer').appendChild(createThemeToggle());
@@ -179,16 +213,14 @@
     });
 
     document.getElementById('logout').addEventListener('click', () => {
-      removeToken();
-      location.href = 'index.html';
+      logout();
     });
 
-    // Initialize
-    (async function() {
+      // Initialize
       currentUser = await whoami();
       if (currentUser) document.getElementById('who').textContent = currentUser.username;
       await loadUsers();
-    })();
+    }
   </script>
 </body>
 </html>
