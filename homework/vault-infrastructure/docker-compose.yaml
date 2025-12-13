@@ -15,7 +15,7 @@ services:
   vault:
     image: hashicorp/vault:1.21
     container_name: shared_vault_server
-    restart: unless-stopped
+    restart: on-failure:5
     ports:
       - "127.0.0.1:8200:8200"
     # NIST 800-53 SC-21: Use DNSSEC-validating DNS resolvers
@@ -27,6 +27,14 @@ services:
       VAULT_ADDR: 'https://0.0.0.0:8200'
       # VAULT_SKIP_VERIFY removed for NIST 800-53 SC-23 compliance
       # Vault uses self-signed certs which are trusted via CA installation
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
     ulimits:
       core: 0
       nofile:
@@ -36,6 +44,7 @@ services:
       memlock:
         soft: -1
         hard: -1
+    pids_limit: 1000
     cap_drop:
       - ALL
     cap_add:
@@ -45,6 +54,8 @@ services:
       - CHOWN
     security_opt:
       - no-new-privileges:true
+      # LSM Security: Docker's default seccomp profile is active (blocks ~44 dangerous syscalls)
+      # AppArmor/SELinux available on Arch Linux but require explicit host configuration
     ipc: private
     pid: host
     volumes:
