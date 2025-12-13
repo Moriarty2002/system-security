@@ -32,6 +32,8 @@ services:
         target: /usr/local/apache2/conf/extra/certs
         tmpfs:
           size: 10M
+          mode: 0755
+        # tmpfs will be owned by the USER running the container (apache:apache with UID 1000)
       # web files
       - type: bind
         source: ./apache/app
