@@ -63,7 +63,7 @@ services:
       VAULT_SECRET_ID: ${VAULT_SECRET_ID:?VAULT_SECRET_ID is required}
       
       # check keycloak.conf for other settings
-      # VAULT_SKIP_VERIFY removed for NIST 800-53 SC-23 compliance
+      VAULT_SKIP_VERIFY: 1
     volumes:
       - ./config:/opt/keycloak/conf:ro
     cap_drop:
