@@ -4,6 +4,7 @@ services:
   apache-fe:
     build: ./apache
     container_name: apache_fe
+    read_only: true
     ports:
       - "80:80"
       - "443:443"
@@ -43,6 +44,7 @@ services:
       - /tmp:mode=1777,size=50M
       - /run/httpd:mode=0755,size=5M,uid=1000,gid=1000
       - /usr/local/apache2/logs:mode=0777,size=10M
+      - /var/cache/apache2:mode=0755,size=10M,uid=1000,gid=1000
     logging:
       driver: "json-file"
       options:
@@ -82,6 +84,7 @@ services:
   backend:
     build: ./be_flask
     container_name: flask_be
+    read_only: true
     # NIST 800-53 SC-21: Use DNSSEC-validating DNS resolvers
     dns:
       - 1.1.1.1        # Cloudflare (DNSSEC-validating)
@@ -131,7 +134,10 @@ services:
     restart: on-failure:5
     tmpfs:
       - /tmp:mode=1777,size=100M
-      - /home/flaskuser/.cache:mode=0755,size=50M
+      - /home/flaskuser/.cache:mode=0755,size=50M,uid=1000,gid=1000
+      - /usr/local/share/ca-certificates:mode=0777,size=10M
+      - /app/logs:mode=0777,size=50M
+      - /etc/ssl/certs:mode=0777,size=10M
     networks:
       - app_net # Connect to the custom network
       - shared_vault_net # Connect to Vault network

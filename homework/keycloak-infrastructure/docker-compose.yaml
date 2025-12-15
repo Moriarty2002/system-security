@@ -62,6 +62,7 @@ services:
       dockerfile: Dockerfile
     image: keycloak-vault-integrated:23.0
     container_name: shared-keycloak-server
+    read_only: true
     command: start --optimized
     # NIST 800-53 SC-21: Use DNSSEC-validating DNS resolvers
     dns:
@@ -80,6 +81,10 @@ services:
     volumes:
       - ./config:/opt/keycloak/conf:ro
       - ./data/blacklist.txt:/opt/keycloak/data/password-blacklist.txt:ro
+    tmpfs:
+      - /tmp:mode=1777,size=100M
+      - /opt/keycloak/data/tmp:mode=0755,size=50M,uid=1000,gid=0
+      - /opt/keycloak/certs:mode=0755,size=10M,uid=1000,gid=0
     cap_drop:
       - ALL
     cap_add:

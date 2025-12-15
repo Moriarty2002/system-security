@@ -30,7 +30,7 @@ def setup_logging(app: Flask) -> None:
     """Setup logging configuration."""
     if not app.debug:
         # In production, log to file
-        log_file = os.path.join(os.path.dirname(__file__), 'app.log')
+        log_file = '/app/logs/app.log'
         handler = logging.FileHandler(log_file)
         handler.setLevel(logging.INFO)
         formatter = logging.Formatter(
