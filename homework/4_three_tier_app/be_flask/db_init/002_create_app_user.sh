@@ -3,6 +3,13 @@ set -e
 
 # This script runs after PostgreSQL initialization
 # Creates an application user with limited privileges
+#
+# SECURITY ARCHITECTURE:
+# - This script creates 'flask_app' user during DB initialization
+# - Password is passed via POSTGRES_APP_PASSWORD environment variable
+# - Same password is stored in Vault at: secret/mes_local_cloud/database/postgres
+# - Flask application retrieves credentials from Vault (NOT from .env)
+# - This ensures Flask connects with least-privilege user
 
 echo "Creating application user for Flask backend..."
 

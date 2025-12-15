@@ -151,9 +151,10 @@ echo ""
 JWT_SECRET=$(openssl rand -base64 32)
 echo "Generated JWT secret key..."
 
-# Use fixed password for development (change for production!)
-DB_PASSWORD="devpass123_NeverUseInProduction"
-echo "Using fixed development database password..."
+# Generate secure passwords for database users
+DB_ADMIN_PASSWORD="devpass123_NeverUseInProduction"
+DB_APP_PASSWORD="flask_app_secure_password"  # Existing password - matches current DB
+echo "Using database passwords..."
 
 # Store application secrets in namespaced path
 vault_exec kv put secret/mes_local_cloud/app/flask \
@@ -164,15 +165,18 @@ vault_exec kv put secret/mes_local_cloud/app/flask \
 
 echo "✅ Application secrets stored at secret/mes_local_cloud/app/flask"
 
-# Store database secrets in namespaced path
+# Store database secrets in namespaced path (used by Flask application - least privilege)
 vault_exec kv put secret/mes_local_cloud/database/postgres \
-    username="admin" \
-    password="$DB_PASSWORD" \
+    username="flask_app" \
+    password="$DB_APP_PASSWORD" \
     database="postgres_db" \
     host="db" \
     port="5432"
 
 echo "✅ Database secrets stored at secret/mes_local_cloud/database/postgres"
+echo "   Note: Flask connects as 'flask_app' user with limited privileges"
+echo "   ⚠️  IMPORTANT: If updating existing Vault, manually run:"
+echo "      vault kv put secret/mes_local_cloud/database/postgres username=flask_app password=flask_app_secure_password database=postgres_db host=db port=5432"
 
 # Generate and store MinIO application user credentials
 echo ""
@@ -271,10 +275,12 @@ FLASK_ENV=production
 PYTHONUNBUFFERED=1
 
 # PostgreSQL Configuration
+# Admin user credentials (for DB initialization only)
 POSTGRES_USER=admin
 POSTGRES_DB=postgres_db
+# App user credentials (Flask connects with these - fetched from Vault)
 POSTGRES_APP_USER=flask_app
-POSTGRES_APP_PASSWORD=flask_app_secure_password
+POSTGRES_APP_PASSWORD=$DB_APP_PASSWORD
 
 # MinIO Root Credentials (for MinIO container administration only)
 # These are NOT used by the Flask application
@@ -296,9 +302,9 @@ echo "✅ .env file created at project root"
 # Create secrets directory and database password file for Docker secrets
 mkdir -p "$PROJECT_ROOT/secrets"
 # Use echo -n to avoid trailing newline which causes authentication issues
-echo -n "$DB_PASSWORD" > "$PROJECT_ROOT/secrets/db_password.txt"
+echo -n "$DB_ADMIN_PASSWORD" > "$PROJECT_ROOT/secrets/db_password.txt"
 chmod 600 "$PROJECT_ROOT/secrets/db_password.txt"
-echo "✅ Database password file created at secrets/db_password.txt"
+echo "✅ Database admin password file created at secrets/db_password.txt (for DB initialization)"
 
 # Also save credentials for postgres environment
 cat > "$PROJECT_ROOT/secrets/postgres.env" <<EOF
