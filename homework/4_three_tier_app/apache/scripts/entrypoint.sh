@@ -71,5 +71,5 @@ else
 fi
 
 echo "Starting Apache..."
-# Start Apache
+# Start Apache as apache user (httpd-foreground handles user switching via httpd.conf)
 exec httpd-foreground

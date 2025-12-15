@@ -24,19 +24,29 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the backend application code
 COPY . .
 
-# Make port 5000 available to the world outside this container
-EXPOSE 5000
-
 # Copy entrypoint script and make executable
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 COPY scripts/install_ca.sh /usr/local/bin/install_ca.sh
 RUN chmod +x /usr/local/bin/install_ca.sh
 
+# Create non-root user and set ownership
+# Note: CA installation requires write access to system directories
+RUN groupadd -r flaskuser && useradd -r -g flaskuser flaskuser && \
+    chown -R flaskuser:flaskuser /app /usr/local/bin/entrypoint.sh /usr/local/bin/install_ca.sh && \
+    mkdir -p /usr/local/share/ca-certificates && \
+    chown -R flaskuser:flaskuser /usr/local/share/ca-certificates /etc/ssl/certs
+
+# Make port 5000 available to the world outside this container
+EXPOSE 5000
+
 # Define environment variables
 ENV FLASK_APP=src/be.py
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV PYTHONPATH=/app
+
+# Switch to non-root user
+USER flaskuser
 
 # Entrypoint will install CA (if available) then exec the CMD
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
