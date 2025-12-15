@@ -37,8 +37,8 @@ disable_mlock = false
 log_level = "Info"
 
 # Default lease duration
-default_lease_ttl = "168h"
-max_lease_ttl = "720h"
+default_lease_ttl = "10m"
+max_lease_ttl = "12h"
 
 # Enable audit logging
 # This will log all Vault operations for security auditing
