@@ -1,6 +1,6 @@
 services:
   apache-FE:
-    image: httpd:alpine
+    image: httpd:2.4.66-alpine
     container_name: apache_fe
     ports:
       - "80:80"   # expose HTTP port

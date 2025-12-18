@@ -1,4 +1,4 @@
-FROM httpd:alpine
+FROM httpd:2.4.66-alpine
 
 # Update base packages and install wget, jq for Vault API calls to pick up security fixes
 # Create non-root user for running Apache
